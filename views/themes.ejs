@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temas</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns" class="<%= path.startsWith('/hymns') ? 'active' : '' %>">Hinos</a>
+    <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Cultos</a>
+    <a href="/themes" class="<%= path.startsWith('/themes') ? 'active' : '' %>">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Temas</h1>
+    </div>
+
+    <div class="card" style="max-width:480px">
+      <h2 class="card-title">Adicionar Tema</h2>
+      <form method="POST" action="/themes" style="display:flex;gap:.75rem">
+        <input type="text" name="name" placeholder="Nome do tema" required style="flex:1">
+        <button type="submit" class="btn btn-primary">Adicionar</button>
+      </form>
+    </div>
+
+    <div class="card card-table">
+      <% if (themes.length === 0) { %>
+        <p class="empty-msg">Nenhum tema cadastrado.</p>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Tema</th>
+              <th style="width:100px">Hinos</th>
+              <th style="width:80px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% themes.forEach(function(t) { %>
+              <tr>
+                <td><a href="/hymns?theme=<%= t.id %>"><%= t.name %></a></td>
+                <td class="muted"><%= t.hymn_count %></td>
+                <td class="td-actions">
+                  <button class="btn btn-danger btn-sm" onclick="deleteTheme(<%= t.id %>, this)">×</button>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+    async function deleteTheme(id, btn) {
+      if (!confirm('Excluir este tema? Ele será removido de todos os hinos.')) return;
+      btn.disabled = true;
+      var res = await fetch('/api/themes/' + id + '/delete', { method: 'POST' });
+      if ((await res.json()).success) {
+        btn.closest('tr').remove();
+      } else {
+        alert('Erro ao excluir.');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

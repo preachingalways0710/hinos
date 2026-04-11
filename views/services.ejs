@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cultos</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns" class="<%= path.startsWith('/hymns') ? 'active' : '' %>">Hinos</a>
+    <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Cultos</a>
+    <a href="/themes" class="<%= path.startsWith('/themes') ? 'active' : '' %>">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Cultos</h1>
+      <a href="/services/new" class="btn btn-primary">+ Planejar Culto</a>
+    </div>
+
+    <% if (services.length === 0) { %>
+      <div class="card">
+        <p class="empty-msg">Nenhum culto registrado. <a href="/services/new">Planejar primeiro culto</a>.</p>
+      </div>
+    <% } else { %>
+      <div class="card card-table">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:110px">Data</th>
+              <th style="width:140px">Culto</th>
+              <th>Hinos</th>
+              <th style="width:100px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% services.forEach(function(s) { %>
+              <tr>
+                <td class="td-date"><%= s.service_date %></td>
+                <td><%= SERVICE_LABELS[s.service_type] || s.service_type %></td>
+                <td>
+                  <% if (s.hymn_list) { %>
+                    <div class="hymn-list-lines">
+                      <% s.hymn_list.split('\n').forEach(function(line) { %>
+                        <div><%= line %></div>
+                      <% }); %>
+                    </div>
+                  <% } else { %>
+                    <span class="muted">—</span>
+                  <% } %>
+                  <% if (s.notes) { %>
+                    <div class="service-notes"><%= s.notes %></div>
+                  <% } %>
+                </td>
+                <td class="td-actions">
+                  <a href="/services/<%= s.id %>/edit" class="btn btn-secondary btn-sm">Editar</a>
+                  <button class="btn btn-danger btn-sm" onclick="deleteService(<%= s.id %>, this)">×</button>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    async function deleteService(id, btn) {
+      if (!confirm('Excluir este culto?')) return;
+      btn.disabled = true;
+      var res = await fetch('/api/services/' + id + '/delete', { method: 'POST' });
+      if ((await res.json()).success) {
+        btn.closest('tr').remove();
+      } else {
+        alert('Erro ao excluir.');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

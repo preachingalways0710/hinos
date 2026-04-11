@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hinos — Painel</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns" class="<%= path.startsWith('/hymns') ? 'active' : '' %>">Hinos</a>
+    <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Cultos</a>
+    <a href="/themes" class="<%= path.startsWith('/themes') ? 'active' : '' %>">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Painel</h1>
+      <a href="/services/new" class="btn btn-primary">+ Planejar Culto</a>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num"><%= stats.total %></div>
+        <div class="stat-label">hinos cadastrados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num"><%= recent.length %></div>
+        <div class="stat-label">cultos recentes</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Cultos Recentes</h2>
+      <% if (recent.length === 0) { %>
+        <p class="empty-msg">Nenhum culto registrado ainda. <a href="/services/new">Planejar primeiro culto</a>.</p>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Culto</th>
+              <th>Hinos</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recent.forEach(function(s) { %>
+              <tr>
+                <td class="td-date"><%= s.service_date %></td>
+                <td><%= SERVICE_LABELS[s.service_type] || s.service_type %></td>
+                <td>
+                  <% if (s.hymn_list) { %>
+                    <div class="hymn-list-lines">
+                      <% s.hymn_list.split('\n').forEach(function(line) { %>
+                        <div><%= line %></div>
+                      <% }); %>
+                    </div>
+                  <% } else { %>
+                    <span class="muted">—</span>
+                  <% } %>
+                </td>
+                <td class="td-actions">
+                  <a href="/services/<%= s.id %>/edit" class="btn btn-secondary btn-sm">Editar</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+        <% if (recent.length === 10) { %>
+          <p class="view-all"><a href="/services">Ver todos os cultos →</a></p>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

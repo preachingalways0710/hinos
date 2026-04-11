@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= hymn ? 'Editar Hino' : 'Adicionar Hino' %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns" class="active">Hinos</a>
+    <a href="/services">Cultos</a>
+    <a href="/themes">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1><%= hymn ? 'Editar Hino' : 'Adicionar Hino' %></h1>
+      <a href="/hymns" class="btn btn-secondary">← Voltar</a>
+    </div>
+
+    <div class="card">
+      <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="<%= hymn ? '/hymns/' + hymn.id + '/update' : '/hymns' %>">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="hymnal_id">Hinário</label>
+            <select id="hymnal_id" name="hymnal_id" required>
+              <% hymnals.forEach(function(hy) { %>
+                <option value="<%= hy.id %>" <%= hymn && hymn.hymnal_id === hy.id ? 'selected' : '' %>><%= hy.code %> — <%= hy.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="number">Número</label>
+            <input type="number" id="number" name="number" min="1" value="<%= hymn ? hymn.number : '' %>" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="title">Título</label>
+          <input type="text" id="title" name="title" value="<%= hymn ? hymn.title : '' %>" required autofocus>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="song_key">Tom <span class="label-optional">(opcional)</span></label>
+            <input type="text" id="song_key" name="song_key" value="<%= hymn && hymn.song_key ? hymn.song_key : '' %>" placeholder="ex: Ré, Fá#, Bb">
+          </div>
+          <div class="form-group">
+            <label for="time_signature">Compasso <span class="label-optional">(opcional)</span></label>
+            <input type="text" id="time_signature" name="time_signature" value="<%= hymn && hymn.time_signature ? hymn.time_signature : '' %>" placeholder="ex: 3/4, 4/4">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Observações <span class="label-optional">(opcional)</span></label>
+          <textarea id="notes" name="notes" placeholder="Notas sobre este hino..."><%= hymn && hymn.notes ? hymn.notes : '' %></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Temas</label>
+          <div class="checkbox-grid">
+            <% themes.forEach(function(t) { %>
+              <label>
+                <input type="checkbox" name="theme_ids" value="<%= t.id %>"
+                  <%= selectedThemes.indexOf(t.id) !== -1 ? 'checked' : '' %>>
+                <%= t.name %>
+              </label>
+            <% }); %>
+          </div>
+          <p class="form-hint">Selecione todos os temas que se aplicam. <a href="/themes" target="_blank">Gerenciar temas</a>.</p>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"><%= hymn ? 'Salvar Alterações' : 'Adicionar Hino' %></button>
+          <a href="/hymns" class="btn btn-secondary">Cancelar</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</body>
+</html>

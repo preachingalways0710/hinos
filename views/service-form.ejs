@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= service ? 'Editar Culto' : 'Planejar Culto' %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns">Hinos</a>
+    <a href="/services" class="active">Cultos</a>
+    <a href="/themes">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1><%= service ? 'Editar Culto' : 'Planejar Culto' %></h1>
+      <a href="/services" class="btn btn-secondary">← Voltar</a>
+    </div>
+
+    <div class="card">
+      <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="<%= service ? '/services/' + service.id + '/update' : '/services' %>">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="service_date">Data</label>
+            <input type="date" id="service_date" name="service_date"
+              value="<%= service ? service.service_date : '' %>" required>
+          </div>
+          <div class="form-group">
+            <label for="service_type">Tipo de Culto</label>
+            <select id="service_type" name="service_type" required>
+              <% var types = ['dom_manha','dom_noite','qua','especial']; %>
+              <% types.forEach(function(t) { %>
+                <option value="<%= t %>" <%= service && service.service_type === t ? 'selected' : '' %>>
+                  <%= SERVICE_LABELS[t] %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Observações <span class="label-optional">(opcional)</span></label>
+          <input type="text" id="notes" name="notes"
+            value="<%= service && service.notes ? service.notes : '' %>"
+            placeholder="ex: Culto de missões, visitantes especiais...">
+        </div>
+
+        <div class="form-group">
+          <label>Hinos <span class="label-optional">(até 5)</span></label>
+          <div class="slots">
+            <% [1,2,3,4,5].forEach(function(n) { %>
+              <div class="slot">
+                <div class="slot-num"><%= n %></div>
+                <div class="slot-body">
+                  <input type="text" id="search-<%= n %>" placeholder="Buscar por título ou número..." autocomplete="off">
+                  <ul class="hymn-dropdown" id="dropdown-<%= n %>"></ul>
+                  <span class="slot-selected" id="selected-<%= n %>" style="display:none"></span>
+                </div>
+                <button type="button" class="slot-clear" id="clear-<%= n %>" style="display:none" title="Remover">×</button>
+                <input type="hidden" name="hymn_ids" id="hymn-id-<%= n %>" value="">
+              </div>
+            <% }); %>
+          </div>
+          <p class="form-hint">Digite pelo menos 2 caracteres para buscar. Deixe slots vazios se precisar de menos de 5 hinos.</p>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"><%= service ? 'Salvar Alterações' : 'Salvar Culto' %></button>
+          <a href="/services" class="btn btn-secondary">Cancelar</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script>
+    var timers = {};
+
+    function initSlot(n, initial) {
+      var searchEl   = document.getElementById('search-'   + n);
+      var hiddenEl   = document.getElementById('hymn-id-'  + n);
+      var dropEl     = document.getElementById('dropdown-' + n);
+      var selectedEl = document.getElementById('selected-' + n);
+      var clearEl    = document.getElementById('clear-'    + n);
+
+      if (initial && initial.id) {
+        selectHymn(n, initial);
+      }
+
+      searchEl.addEventListener('input', function() {
+        clearTimeout(timers[n]);
+        var q = searchEl.value.trim();
+        if (q.length < 2) { dropEl.style.display = 'none'; return; }
+        timers[n] = setTimeout(function() {
+          fetch('/api/hymns?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(results) {
+              dropEl.innerHTML = '';
+              if (!results.length) { dropEl.style.display = 'none'; return; }
+              results.forEach(function(h) {
+                var li = document.createElement('li');
+                li.textContent = h.hymnal + ' ' + h.number + ' \u2014 ' + h.title;
+                li.addEventListener('mousedown', function(e) {
+                  e.preventDefault();
+                  selectHymn(n, h);
+                });
+                dropEl.appendChild(li);
+              });
+              dropEl.style.display = 'block';
+            });
+        }, 250);
+      });
+
+      searchEl.addEventListener('blur', function() {
+        setTimeout(function() { dropEl.style.display = 'none'; }, 150);
+      });
+
+      clearEl.addEventListener('click', function() {
+        clearSlot(n);
+      });
+    }
+
+    function selectHymn(n, h) {
+      document.getElementById('hymn-id-'  + n).value = h.id;
+      document.getElementById('search-'   + n).style.display = 'none';
+      document.getElementById('dropdown-' + n).style.display = 'none';
+      document.getElementById('selected-' + n).textContent   = h.hymnal + ' ' + h.number + ' \u2014 ' + h.title;
+      document.getElementById('selected-' + n).style.display = 'inline';
+      document.getElementById('clear-'    + n).style.display = 'inline-flex';
+    }
+
+    function clearSlot(n) {
+      document.getElementById('hymn-id-'  + n).value = '';
+      document.getElementById('search-'   + n).value = '';
+      document.getElementById('search-'   + n).style.display = '';
+      document.getElementById('dropdown-' + n).style.display = 'none';
+      document.getElementById('selected-' + n).style.display = 'none';
+      document.getElementById('selected-' + n).textContent   = '';
+      document.getElementById('clear-'    + n).style.display = 'none';
+      document.getElementById('search-'   + n).focus();
+    }
+
+    var initialSlots = <%- JSON.stringify(slots) %>;
+    [1,2,3,4,5].forEach(function(n) {
+      initSlot(n, initialSlots[n - 1]);
+    });
+  </script>
+</body>
+</html>

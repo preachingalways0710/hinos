@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hinos</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hymns" class="<%= path.startsWith('/hymns') ? 'active' : '' %>">Hinos</a>
+    <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Cultos</a>
+    <a href="/themes" class="<%= path.startsWith('/themes') ? 'active' : '' %>">Temas</a>
+    <span class="spacer"></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Hinos <span class="count-badge"><%= hymns.length %></span></h1>
+      <a href="/hymns/new" class="btn btn-primary">+ Adicionar Hino</a>
+    </div>
+
+    <div class="theme-filter">
+      <a href="/hymns" class="<%= themeId === 0 ? 'active' : '' %>">Todos</a>
+      <% themes.forEach(function(t) { %>
+        <a href="/hymns?theme=<%= t.id %>" class="<%= themeId === t.id ? 'active' : '' %>"><%= t.name %></a>
+      <% }); %>
+    </div>
+
+    <% if (hymns.length === 0) { %>
+      <div class="card">
+        <p class="empty-msg">
+          <% if (themeId > 0) { %>
+            Nenhum hino com esse tema. <a href="/hymns">Ver todos</a>.
+          <% } else { %>
+            Nenhum hino cadastrado ainda. <a href="/hymns/new">Adicionar primeiro hino</a>.
+          <% } %>
+        </p>
+      </div>
+    <% } else { %>
+      <div class="card card-table">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px">Hinário</th>
+              <th style="width:50px">#</th>
+              <th>Título</th>
+              <th>Temas</th>
+              <th style="width:110px">Último Uso</th>
+              <th style="width:100px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% hymns.forEach(function(h) { %>
+              <tr>
+                <td><span class="badge badge-<%= h.hymnal.toLowerCase() %>"><%= h.hymnal %></span></td>
+                <td class="td-num"><%= h.number %></td>
+                <td><a href="/hymns/<%= h.id %>/edit" class="hymn-title"><%= h.title %></a></td>
+                <td class="td-themes"><%= h.themes || '' %></td>
+                <td>
+                  <% if (h.last_used) { %>
+                    <span class="last-used"><%= h.last_used %></span>
+                  <% } else { %>
+                    <span class="never-used">nunca</span>
+                  <% } %>
+                </td>
+                <td class="td-actions">
+                  <a href="/hymns/<%= h.id %>/edit" class="btn btn-secondary btn-sm">Editar</a>
+                  <button class="btn btn-danger btn-sm" onclick="deleteHymn(<%= h.id %>, this)">×</button>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    async function deleteHymn(id, btn) {
+      if (!confirm('Excluir este hino? Esta ação não pode ser desfeita.')) return;
+      btn.disabled = true;
+      var res = await fetch('/api/hymns/' + id + '/delete', { method: 'POST' });
+      if ((await res.json()).success) {
+        btn.closest('tr').remove();
+      } else {
+        alert('Erro ao excluir.');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
