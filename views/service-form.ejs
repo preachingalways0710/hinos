@@ -9,9 +9,9 @@
 <body>
   <nav>
     <span class="brand">Hinos</span>
-    <a href="/hymns">Hinos</a>
-    <a href="/services" class="active">Cultos</a>
-    <a href="/themes">Temas</a>
+    <a href="/hinos">Hinos</a>
+    <a href="/cultos" class="active">Cultos</a>
+    <a href="/temas">Temas</a>
     <span class="spacer"></span>
     <form method="POST" action="/logout" style="display:inline">
       <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
@@ -21,7 +21,7 @@
   <div class="container">
     <div class="page-header">
       <h1><%= service ? 'Editar Culto' : 'Planejar Culto' %></h1>
-      <a href="/services" class="btn btn-secondary">← Voltar</a>
+      <a href="/cultos" class="btn btn-secondary">← Voltar</a>
     </div>
 
     <div class="card">
@@ -29,7 +29,7 @@
         <div class="alert alert-error"><%= error %></div>
       <% } %>
 
-      <form method="POST" action="<%= service ? '/services/' + service.id + '/update' : '/services' %>">
+      <form method="POST" action="<%= service ? '/cultos/' + service.id + '/atualizar' : '/cultos' %>">
 
         <div class="form-row">
           <div class="form-group">
@@ -78,7 +78,7 @@
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary"><%= service ? 'Salvar Alterações' : 'Salvar Culto' %></button>
-          <a href="/services" class="btn btn-secondary">Cancelar</a>
+          <a href="/cultos" class="btn btn-secondary">Cancelar</a>
         </div>
 
       </form>
@@ -104,7 +104,7 @@
         var q = searchEl.value.trim();
         if (q.length < 2) { dropEl.style.display = 'none'; return; }
         timers[n] = setTimeout(function() {
-          fetch('/api/hymns?q=' + encodeURIComponent(q))
+          fetch('/api/hinos?q=' + encodeURIComponent(q))
             .then(function(r) { return r.json(); })
             .then(function(results) {
               dropEl.innerHTML = '';

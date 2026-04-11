@@ -9,9 +9,9 @@
 <body>
   <nav>
     <span class="brand">Hinos</span>
-    <a href="/hymns" class="active">Hinos</a>
-    <a href="/services">Cultos</a>
-    <a href="/themes">Temas</a>
+    <a href="/hinos" class="active">Hinos</a>
+    <a href="/cultos">Cultos</a>
+    <a href="/temas">Temas</a>
     <span class="spacer"></span>
     <form method="POST" action="/logout" style="display:inline">
       <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
@@ -21,7 +21,7 @@
   <div class="container">
     <div class="page-header">
       <h1><%= hymn ? 'Editar Hino' : 'Adicionar Hino' %></h1>
-      <a href="/hymns" class="btn btn-secondary">← Voltar</a>
+      <a href="/hinos" class="btn btn-secondary">← Voltar</a>
     </div>
 
     <div class="card">
@@ -29,7 +29,7 @@
         <div class="alert alert-error"><%= error %></div>
       <% } %>
 
-      <form method="POST" action="<%= hymn ? '/hymns/' + hymn.id + '/update' : '/hymns' %>">
+      <form method="POST" action="<%= hymn ? '/hinos/' + hymn.id + '/atualizar' : '/hinos' %>">
 
         <div class="form-row">
           <div class="form-group">
@@ -83,12 +83,12 @@
               </label>
             <% }); %>
           </div>
-          <p class="form-hint">Selecione todos os temas que se aplicam. <a href="/themes" target="_blank">Gerenciar temas</a>.</p>
+          <p class="form-hint">Selecione todos os temas que se aplicam. <a href="/temas" target="_blank">Gerenciar temas</a>.</p>
         </div>
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary"><%= hymn ? 'Salvar Alterações' : 'Adicionar Hino' %></button>
-          <a href="/hymns" class="btn btn-secondary">Cancelar</a>
+          <a href="/hinos" class="btn btn-secondary">Cancelar</a>
         </div>
 
       </form>

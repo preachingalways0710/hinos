@@ -9,9 +9,9 @@
 <body>
   <nav>
     <span class="brand">Hinos</span>
-    <a href="/hymns" class="<%= path.startsWith('/hymns') ? 'active' : '' %>">Hinos</a>
-    <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Cultos</a>
-    <a href="/themes" class="<%= path.startsWith('/themes') ? 'active' : '' %>">Temas</a>
+    <a href="/hinos" class="<%= path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
+    <a href="/cultos" class="<%= path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
+    <a href="/temas" class="<%= path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
     <span class="spacer"></span>
     <form method="POST" action="/logout" style="display:inline">
       <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
@@ -21,12 +21,12 @@
   <div class="container">
     <div class="page-header">
       <h1>Cultos</h1>
-      <a href="/services/new" class="btn btn-primary">+ Planejar Culto</a>
+      <a href="/cultos/novo" class="btn btn-primary">+ Planejar Culto</a>
     </div>
 
     <% if (services.length === 0) { %>
       <div class="card">
-        <p class="empty-msg">Nenhum culto registrado. <a href="/services/new">Planejar primeiro culto</a>.</p>
+        <p class="empty-msg">Nenhum culto registrado. <a href="/cultos/novo">Planejar primeiro culto</a>.</p>
       </div>
     <% } else { %>
       <div class="card card-table">
@@ -59,7 +59,7 @@
                   <% } %>
                 </td>
                 <td class="td-actions">
-                  <a href="/services/<%= s.id %>/edit" class="btn btn-secondary btn-sm">Editar</a>
+                  <a href="/cultos/<%= s.id %>/editar" class="btn btn-secondary btn-sm">Editar</a>
                   <button class="btn btn-danger btn-sm" onclick="deleteService(<%= s.id %>, this)">×</button>
                 </td>
               </tr>
@@ -74,7 +74,7 @@
     async function deleteService(id, btn) {
       if (!confirm('Excluir este culto?')) return;
       btn.disabled = true;
-      var res = await fetch('/api/services/' + id + '/delete', { method: 'POST' });
+      var res = await fetch('/api/cultos/' + id + '/delete', { method: 'POST' });
       if ((await res.json()).success) {
         btn.closest('tr').remove();
       } else {
