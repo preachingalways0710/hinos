@@ -159,16 +159,13 @@ for (const source of SOURCES) {
   if (source.format === 'hl')        rows = parseHL(lines);
 
   out.push('-- ' + source.code + ' (' + rows.length + ' hymns)');
-  out.push('INSERT IGNORE INTO hymns (number, title, english_title, hymnal_id)');
-  out.push('SELECT vals.number, vals.title, vals.english_title, h.id');
-  out.push('FROM (VALUES');
+  out.push("SET @hymnal_id = (SELECT id FROM hymnals WHERE code = '" + source.code + "');");
+  out.push('INSERT IGNORE INTO hymns (number, title, english_title, hymnal_id) VALUES');
 
   const valLines = rows.map((r, i) =>
-    '  ROW(' + r.number + ', ' + escape(r.title) + ', ' + escape(r.enTitle) + ')'
+    '  (' + r.number + ', ' + escape(r.title) + ', ' + escape(r.enTitle) + ', @hymnal_id)'
   );
-  out.push(valLines.join(',\n'));
-  out.push(') AS vals(number, title, english_title)');
-  out.push("JOIN hymnals h ON h.code = '" + source.code + "';");
+  out.push(valLines.join(',\n') + ';');
   out.push('');
 
   console.log('  ' + source.code + ': ' + rows.length + ' hymns');
