@@ -93,7 +93,7 @@ app.get('/', requireLogin, async (req, res) => {
 app.get('/hymns', requireLogin, async (req, res) => {
   const themeId = parseInt(req.query.theme) || 0;
   const [hymns] = await db.query(`
-    SELECT h.id, h.number, h.title, hy.code AS hymnal,
+    SELECT h.id, h.number, h.title, h.english_title, hy.code AS hymnal,
            MAX(s.service_date) AS last_used,
            GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ', ') AS themes
     FROM hymns h
@@ -125,8 +125,8 @@ app.post('/hymns', requireLogin, async (req, res) => {
   const themeIds = [].concat(req.body.theme_ids || []).filter(Boolean);
   try {
     const [result] = await db.query(
-      'INSERT INTO hymns (number, title, hymnal_id, song_key, time_signature, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [number, title, hymnal_id, song_key || null, time_signature || null, notes || null]
+      'INSERT INTO hymns (number, title, english_title, hymnal_id, song_key, time_signature, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [number, title, req.body.english_title || null, hymnal_id, song_key || null, time_signature || null, notes || null]
     );
     const hymnId = result.insertId;
     for (const tid of themeIds) {
@@ -162,8 +162,8 @@ app.post('/hymns/:id/update', requireLogin, async (req, res) => {
   const themeIds = [].concat(req.body.theme_ids || []).filter(Boolean);
   try {
     await db.query(
-      'UPDATE hymns SET number=?, title=?, hymnal_id=?, song_key=?, time_signature=?, notes=? WHERE id=?',
-      [number, title, hymnal_id, song_key || null, time_signature || null, notes || null, req.params.id]
+      'UPDATE hymns SET number=?, title=?, english_title=?, hymnal_id=?, song_key=?, time_signature=?, notes=? WHERE id=?',
+      [number, title, req.body.english_title || null, hymnal_id, song_key || null, time_signature || null, notes || null, req.params.id]
     );
     await db.query('DELETE FROM hymn_themes WHERE hymn_id = ?', [req.params.id]);
     for (const tid of themeIds) {
@@ -196,15 +196,16 @@ app.get('/api/hymns', requireLogin, async (req, res) => {
   if (!q) return res.json([]);
   const like = '%' + q + '%';
   const [rows] = await db.query(`
-    SELECT h.id, h.number, h.title, hy.code AS hymnal
+    SELECT h.id, h.number, h.title, h.english_title, hy.code AS hymnal
     FROM hymns h
     JOIN hymnals hy ON hy.id = h.hymnal_id
     WHERE h.title LIKE ?
+       OR h.english_title LIKE ?
        OR CAST(h.number AS CHAR) LIKE ?
        OR CONCAT(hy.code, ' ', h.number) LIKE ?
     ORDER BY hy.code ASC, h.number ASC
     LIMIT 20
-  `, [like, like, like]);
+  `, [like, like, like, like]);
   res.json(rows);
 });
 

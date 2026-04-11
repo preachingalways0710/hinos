@@ -7,12 +7,13 @@ CREATE TABLE IF NOT EXISTS hymnals (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Forward-compatible: song_key and time_signature are nullable now,
+-- Forward-compatible: english_title, song_key, and time_signature are nullable now,
 -- ready to populate whenever needed for future ProPresenter features.
 CREATE TABLE IF NOT EXISTS hymns (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   number         INT          NOT NULL,
   title          VARCHAR(255) NOT NULL,
+  english_title  VARCHAR(255) DEFAULT NULL,
   hymnal_id      INT          NOT NULL,
   song_key       VARCHAR(10)  DEFAULT NULL,
   time_signature VARCHAR(10)  DEFAULT NULL,
@@ -74,7 +75,10 @@ INSERT IGNORE INTO hymnals (code, name) VALUES
   ('CC',  'Cantor Cristão'),
   ('SHC', 'Salmos Hinos e Cânticos'),
   ('VM',  'Voz de Melodia'),
-  ('CP',  'Composições Pessoais');
+  ('CP',  'Composições Pessoais'),
+  ('CDE', 'Corinhos da Escola'),
+  ('COR', 'Corinhos'),
+  ('HL',  'Hinos de Louvor');
 
 INSERT IGNORE INTO themes (name) VALUES
   ('Adoração'),

@@ -111,7 +111,7 @@
               if (!results.length) { dropEl.style.display = 'none'; return; }
               results.forEach(function(h) {
                 var li = document.createElement('li');
-                li.textContent = h.hymnal + ' ' + h.number + ' \u2014 ' + h.title;
+                li.textContent = h.hymnal + ' ' + h.number + ' \u2014 ' + h.title + (h.english_title ? ' (' + h.english_title + ')' : '');
                 li.addEventListener('mousedown', function(e) {
                   e.preventDefault();
                   selectHymn(n, h);

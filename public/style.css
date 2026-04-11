@@ -161,6 +161,7 @@ tbody tr:hover td { background: #fafafa; }
 /* ─── Hymn title link ───────────────────────────────────────────────────────── */
 .hymn-title { color: #111827; font-weight: 500; }
 .hymn-title:hover { color: #2563eb; text-decoration: none; }
+.english-title { font-size: 12px; color: #9ca3af; margin-top: .1rem; }
 
 /* ─── Hymnal badges ─────────────────────────────────────────────────────────── */
 .badge {

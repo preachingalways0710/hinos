@@ -59,7 +59,12 @@
               <tr>
                 <td><span class="badge badge-<%= h.hymnal.toLowerCase() %>"><%= h.hymnal %></span></td>
                 <td class="td-num"><%= h.number %></td>
-                <td><a href="/hymns/<%= h.id %>/edit" class="hymn-title"><%= h.title %></a></td>
+                <td>
+                  <a href="/hymns/<%= h.id %>/edit" class="hymn-title"><%= h.title %></a>
+                  <% if (h.english_title) { %>
+                    <div class="english-title"><%= h.english_title %></div>
+                  <% } %>
+                </td>
                 <td class="td-themes"><%= h.themes || '' %></td>
                 <td>
                   <% if (h.last_used) { %>
