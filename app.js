@@ -111,7 +111,7 @@ app.get('/hinos', requireLogin, w(async (req, res) => {
       WHERE ht2.hymn_id = h.id AND ht2.theme_id = ?
     ))
     GROUP BY h.id, h.number, h.title, h.english_title, hy.code
-    ORDER BY (last_used IS NULL) DESC, last_used ASC, hy.code ASC, h.number ASC
+    ORDER BY (MAX(s.service_date) IS NULL) DESC, MAX(s.service_date) ASC, hy.code ASC, h.number ASC
   `, [themeId, themeId]);
   const [themes] = await db.query('SELECT * FROM themes ORDER BY name');
   res.render('hymns', { hymns, themes, themeId });
