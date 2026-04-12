@@ -6,6 +6,10 @@ const mysql        = require('mysql2/promise');
 
 const app = express();
 
+// Wrap async route handlers so errors go to Express error handler
+// instead of crashing the process (Express 4 doesn't catch async errors)
+const w = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // ─── Database ─────────────────────────────────────────────────────────────────
 
 const db = mysql.createPool({
@@ -69,7 +73,7 @@ app.post('/logout', requireLogin, (req, res) => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-app.get('/', requireLogin, async (req, res) => {
+app.get('/', requireLogin, w(async (req, res) => {
   const [recent] = await db.query(`
     SELECT s.id, s.service_date, s.service_type,
            GROUP_CONCAT(
@@ -86,11 +90,11 @@ app.get('/', requireLogin, async (req, res) => {
   `);
   const [[stats]] = await db.query('SELECT COUNT(*) AS total FROM hymns');
   res.render('index', { recent, stats });
-});
+}));
 
 // ─── Hymns ────────────────────────────────────────────────────────────────────
 
-app.get('/hinos', requireLogin, async (req, res) => {
+app.get('/hinos', requireLogin, w(async (req, res) => {
   const themeId = parseInt(req.query.theme) || 0;
   const [hymns] = await db.query(`
     SELECT h.id, h.number, h.title, h.english_title, hy.code AS hymnal,
@@ -111,16 +115,16 @@ app.get('/hinos', requireLogin, async (req, res) => {
   `, [themeId, themeId]);
   const [themes] = await db.query('SELECT * FROM themes ORDER BY name');
   res.render('hymns', { hymns, themes, themeId });
-});
+}));
 
 // IMPORTANT: /hymns/new must come before /hymns/:id/edit
-app.get('/hinos/novo', requireLogin, async (req, res) => {
+app.get('/hinos/novo', requireLogin, w(async (req, res) => {
   const [hymnals] = await db.query('SELECT * FROM hymnals ORDER BY name');
   const [themes]  = await db.query('SELECT * FROM themes ORDER BY name');
   res.render('hymn-form', { hymn: null, hymnals, themes, selectedThemes: [], error: null });
-});
+}));
 
-app.post('/hinos', requireLogin, async (req, res) => {
+app.post('/hinos', requireLogin, w(async (req, res) => {
   const { number, title, hymnal_id, song_key, time_signature, notes } = req.body;
   const themeIds = [].concat(req.body.theme_ids || []).filter(Boolean);
   try {
@@ -145,9 +149,9 @@ app.post('/hinos', requireLogin, async (req, res) => {
     }
     throw err;
   }
-});
+}));
 
-app.get('/hinos/:id/editar', requireLogin, async (req, res) => {
+app.get('/hinos/:id/editar', requireLogin, w(async (req, res) => {
   const [[hymn]] = await db.query('SELECT * FROM hymns WHERE id = ?', [req.params.id]);
   if (!hymn) return res.redirect('/hinos');
   const [hymnals] = await db.query('SELECT * FROM hymnals ORDER BY name');
@@ -155,9 +159,9 @@ app.get('/hinos/:id/editar', requireLogin, async (req, res) => {
   const [htRows]  = await db.query('SELECT theme_id FROM hymn_themes WHERE hymn_id = ?', [req.params.id]);
   const selectedThemes = htRows.map(r => r.theme_id);
   res.render('hymn-form', { hymn, hymnals, themes, selectedThemes, error: null });
-});
+}));
 
-app.post('/hinos/:id/atualizar', requireLogin, async (req, res) => {
+app.post('/hinos/:id/atualizar', requireLogin, w(async (req, res) => {
   const { number, title, hymnal_id, song_key, time_signature, notes } = req.body;
   const themeIds = [].concat(req.body.theme_ids || []).filter(Boolean);
   try {
@@ -183,15 +187,15 @@ app.post('/hinos/:id/atualizar', requireLogin, async (req, res) => {
     }
     throw err;
   }
-});
+}));
 
-app.post('/api/hinos/:id/delete', requireLogin, async (req, res) => {
+app.post('/api/hinos/:id/delete', requireLogin, w(async (req, res) => {
   await db.query('DELETE FROM hymns WHERE id = ?', [req.params.id]);
   res.json({ success: true });
-});
+}));
 
 // Typeahead search — must come before /api/hymns/:id routes
-app.get('/api/hinos', requireLogin, async (req, res) => {
+app.get('/api/hinos', requireLogin, w(async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
   const like = '%' + q + '%';
@@ -207,11 +211,11 @@ app.get('/api/hinos', requireLogin, async (req, res) => {
     LIMIT 20
   `, [like, like, like, like]);
   res.json(rows);
-});
+}));
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 
-app.get('/cultos', requireLogin, async (req, res) => {
+app.get('/cultos', requireLogin, w(async (req, res) => {
   const [services] = await db.query(`
     SELECT s.id, s.service_date, s.service_type, s.notes,
            GROUP_CONCAT(
@@ -226,14 +230,14 @@ app.get('/cultos', requireLogin, async (req, res) => {
     ORDER BY s.service_date DESC
   `);
   res.render('services', { services });
-});
+}));
 
 // IMPORTANT: /services/new must come before /services/:id/edit
 app.get('/cultos/novo', requireLogin, (req, res) => {
   res.render('service-form', { service: null, slots: Array(5).fill(null), error: null });
 });
 
-app.post('/cultos', requireLogin, async (req, res) => {
+app.post('/cultos', requireLogin, w(async (req, res) => {
   const { service_date, service_type, notes } = req.body;
   const hymnIds = [].concat(req.body.hymn_ids || []);
   try {
@@ -260,9 +264,9 @@ app.post('/cultos', requireLogin, async (req, res) => {
     }
     throw err;
   }
-});
+}));
 
-app.get('/cultos/:id/editar', requireLogin, async (req, res) => {
+app.get('/cultos/:id/editar', requireLogin, w(async (req, res) => {
   const [[service]] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
   if (!service) return res.redirect('/cultos');
   const [shRows] = await db.query(`
@@ -276,9 +280,9 @@ app.get('/cultos/:id/editar', requireLogin, async (req, res) => {
   const slots = Array(5).fill(null);
   for (const row of shRows) slots[row.position - 1] = row;
   res.render('service-form', { service, slots, error: null });
-});
+}));
 
-app.post('/cultos/:id/atualizar', requireLogin, async (req, res) => {
+app.post('/cultos/:id/atualizar', requireLogin, w(async (req, res) => {
   const { service_date, service_type, notes } = req.body;
   const hymnIds = [].concat(req.body.hymn_ids || []);
   try {
@@ -307,16 +311,16 @@ app.post('/cultos/:id/atualizar', requireLogin, async (req, res) => {
     }
     throw err;
   }
-});
+}));
 
-app.post('/api/cultos/:id/delete', requireLogin, async (req, res) => {
+app.post('/api/cultos/:id/delete', requireLogin, w(async (req, res) => {
   await db.query('DELETE FROM services WHERE id = ?', [req.params.id]);
   res.json({ success: true });
-});
+}));
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
 
-app.get('/temas', requireLogin, async (req, res) => {
+app.get('/temas', requireLogin, w(async (req, res) => {
   const [themes] = await db.query(`
     SELECT t.id, t.name, COUNT(ht.hymn_id) AS hymn_count
     FROM themes t
@@ -325,9 +329,9 @@ app.get('/temas', requireLogin, async (req, res) => {
     ORDER BY t.name
   `);
   res.render('themes', { themes });
-});
+}));
 
-app.post('/temas', requireLogin, async (req, res) => {
+app.post('/temas', requireLogin, w(async (req, res) => {
   const name = (req.body.name || '').trim();
   if (name) {
     try {
@@ -337,18 +341,18 @@ app.post('/temas', requireLogin, async (req, res) => {
     }
   }
   res.redirect('/temas');
-});
+}));
 
-app.post('/api/temas/:id/delete', requireLogin, async (req, res) => {
+app.post('/api/temas/:id/delete', requireLogin, w(async (req, res) => {
   await db.query('DELETE FROM themes WHERE id = ?', [req.params.id]);
   res.json({ success: true });
-});
+}));
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 
 app.use((err, req, res, next) => {
-  console.error('APP ERROR:', err.message);
-  res.status(500).send('<pre>ERROR: ' + err.message + '</pre>');
+  console.error('APP ERROR:', err.stack || err.message);
+  res.status(500).send('<pre>ERRO: ' + (err.message || err) + '\n\n' + (err.stack || '') + '</pre>');
 });
 
 const PORT = process.env.PORT || 3000;
