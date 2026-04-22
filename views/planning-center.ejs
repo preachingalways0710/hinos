@@ -162,22 +162,17 @@
           </div>
           <div class="form-group">
             <label for="pc-local-playlist">Playlist no App (Promidia)</label>
-            <input type="text" id="pc-local-playlist" list="pc-local-playlist-list" placeholder="Ex: APELO, CEIA...">
-            <datalist id="pc-local-playlist-list">
-              <% const seenPcPlaylists = new Set(); %>
+            <select id="pc-local-playlist">
+              <option value="">Selecione uma playlist sincronizada</option>
               <% (promidiaPlaylistNames || []).forEach(function(name) { %>
                 <% const safeName = String(name || '').trim(); %>
-                <% if (!safeName || seenPcPlaylists.has(safeName)) return; %>
-                <% seenPcPlaylists.add(safeName); %>
-                <option value="<%= safeName %>"></option>
+                <% if (!safeName) return; %>
+                <option value="<%= safeName %>"><%= safeName %></option>
               <% }); %>
-              <% (recentServices || []).forEach(function(svc) { %>
-                <% const safeName = String(svc && svc.playlist_name || '').trim(); %>
-                <% if (!safeName || seenPcPlaylists.has(safeName)) return; %>
-                <% seenPcPlaylists.add(safeName); %>
-                <option value="<%= safeName %>"></option>
-              <% }); %>
-            </datalist>
+              <% if (!(promidiaPlaylistNames || []).length) { %>
+                <option value="" disabled>Nenhuma playlist sincronizada disponível</option>
+              <% } %>
+            </select>
           </div>
         </div>
 
@@ -385,7 +380,7 @@
             localDateEl.value = String(response.preview.planDate).slice(0, 10);
           }
           if (response.preview && response.preview.planTitle && localPlaylistEl && !localPlaylistEl.value) {
-            localPlaylistEl.value = String(response.preview.planTitle);
+            trySelectLocalPlaylistByName(response.preview.planTitle);
           }
           setMessage('Prévia pronta.');
         } catch (err) {
@@ -400,7 +395,7 @@
             return;
           }
           if (!localDateEl.value || !localPlaylistEl.value) {
-            setMessage('Defina data e playlist no Hinos.');
+            setMessage('Defina data e selecione uma playlist sincronizada.');
             return;
           }
           if (importModeEl.value === 'replace') {
@@ -434,3 +429,13 @@
   </script>
 </body>
 </html>
+    function trySelectLocalPlaylistByName(name) {
+      if (!localPlaylistEl || !name) return false;
+      const target = String(name || '').trim().toLowerCase();
+      if (!target) return false;
+      const options = Array.from(localPlaylistEl.options || []);
+      const match = options.find(opt => String(opt.value || '').trim().toLowerCase() === target);
+      if (!match) return false;
+      localPlaylistEl.value = match.value;
+      return true;
+    }

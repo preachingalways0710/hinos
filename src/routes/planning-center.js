@@ -23,8 +23,20 @@ const {
 
 const router = express.Router();
 
-router.get('/integracoes/planning-center', requireLogin, asyncHandler(async (req, res) => {
-  const status = await getStatus();
+async function isPromidiaPlaylistName(name = '') {
+  const normalized = normalizeNullableText(name, 255);
+  if (!normalized) return false;
+  const [[row]] = await db.query(
+    `SELECT 1
+     FROM promidia_playlists
+     WHERE provider = 'promidia' AND name = ?
+     LIMIT 1`,
+    [normalized]
+  );
+  return !!row;
+}
+
+async function loadPlanningPageContext() {
   const [recentServices] = await db.query(`
     SELECT id, service_date, playlist_name, notes
     FROM services
@@ -38,10 +50,19 @@ router.get('/integracoes/planning-center', requireLogin, asyncHandler(async (req
     ORDER BY updated_at DESC, id DESC
     LIMIT 120
   `);
+  return {
+    recentServices,
+    promidiaPlaylistNames: [...new Set((promidiaPlaylists || []).map(row => String(row?.name || '').trim()).filter(Boolean))],
+  };
+}
+
+router.get('/integracoes/planning-center', requireLogin, asyncHandler(async (req, res) => {
+  const status = await getStatus();
+  const { recentServices, promidiaPlaylistNames } = await loadPlanningPageContext();
   res.render('planning-center', {
     status,
     recentServices,
-    promidiaPlaylistNames: [...new Set((promidiaPlaylists || []).map(row => String(row?.name || '').trim()).filter(Boolean))],
+    promidiaPlaylistNames,
     error: null,
     result: null,
   });
@@ -62,8 +83,11 @@ router.get('/integracoes/planning-center/callback', requireLogin, asyncHandler(a
 
   if (!code || !state || !expected || state !== expected) {
     const status = await getStatus();
+    const { recentServices, promidiaPlaylistNames } = await loadPlanningPageContext();
     return res.status(400).render('planning-center', {
       status,
+      recentServices,
+      promidiaPlaylistNames,
       error: 'Falha na validação do retorno OAuth (state inválido).',
       result: null,
     });
@@ -121,6 +145,9 @@ router.post('/api/planning-center/import', requireLogin, asyncHandler(async (req
 
   if (!serviceTypeId || !planId || !localPlaylistName || !localDate) {
     return res.status(400).json({ ok: false, error: 'MISSING_REQUIRED_FIELDS' });
+  }
+  if (!await isPromidiaPlaylistName(localPlaylistName)) {
+    return res.status(400).json({ ok: false, error: 'INVALID_LOCAL_PLAYLIST' });
   }
 
   const preview = await previewPlanImport({

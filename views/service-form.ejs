@@ -41,39 +41,6 @@
 
       <form method="POST" action="<%= isEditMode ? '/cultos/' + service.id + '/atualizar' : '/cultos' %>">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <% if (!isEditMode) { %>
-          <input type="hidden" name="base_template" id="base_template" value="<%= sourceTemplateKey || '' %>">
-        <% } %>
-
-        <% if (!isEditMode) { %>
-          <div class="form-group">
-            <label for="base-template-select">Basear em plano existente <span class="label-optional">(opcional)</span></label>
-            <select id="base-template-select">
-              <option value="">Começar do zero</option>
-              <% if ((templateServices || []).length) { %>
-                <optgroup label="Cultos existentes">
-                  <% (templateServices || []).forEach(function(t) { %>
-                    <% var key = 'local:' + t.id; %>
-                    <option value="<%= key %>" <%= (sourceTemplateKey || '') === key ? 'selected' : '' %>>
-                      <%= t.service_date %> — <%= t.playlist_name || 'Sem playlist' %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
-                    </option>
-                  <% }); %>
-                </optgroup>
-              <% } %>
-              <% if ((templatePromidiaPlaylists || []).length) { %>
-                <optgroup label="Playlists sincronizadas (Promidia)">
-                  <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
-                    <% var key = 'promidia:' + t.external_playlist_id; %>
-                    <option value="<%= key %>" <%= (sourceTemplateKey || '') === key ? 'selected' : '' %>>
-                      <%= t.name %> (<%= t.item_count || 0 %> itens)<%= t.updated_at ? (' — sync ' + t.updated_at) : '' %>
-                    </option>
-                  <% }); %>
-                </optgroup>
-              <% } %>
-            </select>
-            <p class="form-hint">Escolha um plano para copiar os hinos e a playlist, depois ajuste a data.</p>
-          </div>
-        <% } %>
 
         <div class="planner-grid">
           <div class="planner-main">
@@ -85,25 +52,29 @@
 
             <div class="form-group">
               <label for="playlist_name">Playlist no App (Promidia)</label>
-              <input type="text" id="playlist_name" name="playlist_name" list="playlist-name-options"
-                value="<%= currentPlaylistName %>"
-                placeholder="Ex: APELO, DOMINGO MANHÃ, CEIA..." required>
-              <datalist id="playlist-name-options">
-                <% const seenPlaylistNames = new Set(); %>
-                <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
-                  <% const pName = String(t && t.name || '').trim(); %>
-                  <% if (!pName || seenPlaylistNames.has(pName)) return; %>
-                  <% seenPlaylistNames.add(pName); %>
-                    <option value="<%= pName %>"></option>
+              <% const seenPlaylistNames = new Set(); %>
+              <% const promidiaPlaylistNames = []; %>
+              <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
+                <% const pName = String(t && t.name || '').trim(); %>
+                <% if (!pName || seenPlaylistNames.has(pName)) return; %>
+                <% seenPlaylistNames.add(pName); %>
+                <% promidiaPlaylistNames.push(pName); %>
+              <% }); %>
+              <% const currentPlaylistMissing = !!(currentPlaylistName && !seenPlaylistNames.has(currentPlaylistName)); %>
+              <select id="playlist_name" name="playlist_name" required>
+                <option value="" <%= currentPlaylistName && !currentPlaylistMissing ? '' : 'selected' %>>Selecione uma playlist sincronizada</option>
+                <% promidiaPlaylistNames.forEach(function(name) { %>
+                  <option value="<%= name %>" <%= currentPlaylistName === name ? 'selected' : '' %>><%= name %></option>
                 <% }); %>
-                <% (templateServices || []).forEach(function(t) { %>
-                  <% const pName = String(t && t.playlist_name || '').trim(); %>
-                  <% if (!pName || seenPlaylistNames.has(pName)) return; %>
-                  <% seenPlaylistNames.add(pName); %>
-                  <option value="<%= pName %>"></option>
-                <% }); %>
-              </datalist>
-              <p class="form-hint">Este nome deve bater com a playlist real usada no Promidia app.</p>
+                <% if (!promidiaPlaylistNames.length) { %>
+                  <option value="" disabled>Nenhuma playlist sincronizada disponível</option>
+                <% } %>
+              </select>
+              <% if (currentPlaylistMissing) { %>
+                <p class="form-hint">A playlist atual não está mais sincronizada. Escolha uma playlist da lista.</p>
+              <% } else { %>
+                <p class="form-hint">Mostrando somente playlists sincronizadas do Promidia.</p>
+              <% } %>
             </div>
 
             <div class="form-group">
@@ -337,22 +308,6 @@
       initSlot(n, initialSlots[n - 1]);
     });
     setActiveSlot(findNextEmptySlot() || 1);
-
-    var baseTemplateSelect = document.getElementById('base-template-select');
-    if (baseTemplateSelect) {
-      baseTemplateSelect.addEventListener('change', function() {
-        var selected = String(baseTemplateSelect.value || '').trim();
-        var dateInput = document.getElementById('service_date');
-        var date = dateInput ? String(dateInput.value || '').trim() : '';
-        if (!selected) {
-          window.location.href = date ? ('/cultos/novo?date=' + encodeURIComponent(date)) : '/cultos/novo';
-          return;
-        }
-        var url = '/cultos/novo?base=' + encodeURIComponent(selected);
-        if (date) url += '&date=' + encodeURIComponent(date);
-        window.location.href = url;
-      });
-    }
 
     var browserQEl = document.getElementById('planner-browser-q');
     var browserHymnalEl = document.getElementById('planner-browser-hymnal');

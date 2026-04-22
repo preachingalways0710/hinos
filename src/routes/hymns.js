@@ -47,6 +47,19 @@ async function listCultoOptions(limit = 120) {
   return rows;
 }
 
+async function isPromidiaPlaylistName(name = '') {
+  const normalized = normalizeNullableText(name, 255);
+  if (!normalized) return false;
+  const [[row]] = await db.query(
+    `SELECT 1
+     FROM promidia_playlists
+     WHERE provider = 'promidia' AND name = ?
+     LIMIT 1`,
+    [normalized]
+  );
+  return !!row;
+}
+
 router.get('/hinos', requireLogin, asyncHandler(async (req, res) => {
   const q = normalizeShortText(req.query.q || '', 120);
   const themeId = toPositiveInt(req.query.theme, 0);
@@ -399,6 +412,9 @@ router.post('/api/hinos/:id/add-to-culto', requireLogin, asyncHandler(async (req
       return res.status(400).json({ success: false, error: 'INVALID_SERVICE_DATE' });
     }
     if (!normalizedPlaylist) {
+      return res.status(400).json({ success: false, error: 'INVALID_PLAYLIST_NAME' });
+    }
+    if (!await isPromidiaPlaylistName(normalizedPlaylist)) {
       return res.status(400).json({ success: false, error: 'INVALID_PLAYLIST_NAME' });
     }
     try {

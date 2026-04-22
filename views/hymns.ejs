@@ -174,22 +174,17 @@
         </div>
         <div class="form-group">
           <label for="add-to-culto-playlist">Nome da Playlist no App</label>
-          <input id="add-to-culto-playlist" type="text" list="modal-playlist-names" placeholder="Ex: APELO, CEIA...">
-          <datalist id="modal-playlist-names">
-            <% const seenModalPlaylists = new Set(); %>
+          <select id="add-to-culto-playlist">
+            <option value="">Selecione uma playlist sincronizada</option>
             <% (promidiaPlaylistNames || []).forEach(function(name) { %>
               <% const safeName = String(name || '').trim(); %>
-              <% if (!safeName || seenModalPlaylists.has(safeName)) return; %>
-              <% seenModalPlaylists.add(safeName); %>
-              <option value="<%= safeName %>"></option>
+              <% if (!safeName) return; %>
+              <option value="<%= safeName %>"><%= safeName %></option>
             <% }); %>
-            <% (cultoOptions || []).forEach(function(svc) { %>
-              <% const safeName = String(svc && svc.playlist_name || '').trim(); %>
-              <% if (!safeName || seenModalPlaylists.has(safeName)) return; %>
-              <% seenModalPlaylists.add(safeName); %>
-              <option value="<%= safeName %>"></option>
-            <% }); %>
-          </datalist>
+            <% if (!(promidiaPlaylistNames || []).length) { %>
+              <option value="" disabled>Nenhuma playlist sincronizada disponível</option>
+            <% } %>
+          </select>
         </div>
       </div>
 
@@ -226,6 +221,8 @@
       document.getElementById('add-to-culto-selected').textContent = pendingAddHymnLabel;
       document.getElementById('add-to-culto-target').value = '';
       document.getElementById('add-to-culto-new-fields').style.display = 'none';
+      var playlistEl = document.getElementById('add-to-culto-playlist');
+      if (playlistEl) playlistEl.value = '';
       document.getElementById('add-to-culto-modal').style.display = 'flex';
     }
 
@@ -248,7 +245,7 @@
         const date = String(document.getElementById('add-to-culto-date').value || '').trim();
         const playlistName = String(document.getElementById('add-to-culto-playlist').value || '').trim();
         if (!date || !playlistName) {
-          alert('Preencha data e nome da playlist para criar o culto.');
+          alert('Preencha a data e selecione uma playlist sincronizada.');
           return;
         }
         payload.serviceDate = date;

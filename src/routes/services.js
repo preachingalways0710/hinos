@@ -7,7 +7,6 @@ const { requireLogin } = require('../middleware/auth');
 const {
   normalizeDateOnly,
   normalizeNullableText,
-  normalizeShortText,
   toPositiveInt,
 } = require('../utils/validation');
 
@@ -29,91 +28,12 @@ function toIsoDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-function parseIsoDate(value = '') {
-  const text = String(value || '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
-  const date = new Date(`${text}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-}
-
 function nextSundayIso(today = new Date()) {
   const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const day = base.getDay();
   const delta = day === 0 ? 7 : (7 - day);
   base.setDate(base.getDate() + delta);
   return toIsoDate(base);
-}
-
-function parseDateFromPlaylistName(name = '') {
-  const text = String(name || '').trim();
-  if (!text) return '';
-  function toValidIso(y, m, d) {
-    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return '';
-    if (m < 1 || m > 12 || d < 1 || d > 31) return '';
-    const date = new Date(y, m - 1, d);
-    if (date.getFullYear() !== y || (date.getMonth() + 1) !== m || date.getDate() !== d) return '';
-    return toIsoDate(date);
-  }
-  const isoMatch = text.match(/(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})/);
-  if (isoMatch) {
-    const y = Number(isoMatch[1]);
-    const m = Number(isoMatch[2]);
-    const d = Number(isoMatch[3]);
-    return toValidIso(y, m, d);
-  }
-  const brMatch = text.match(/(\d{1,2})[-/.](\d{1,2})(?:[-/.](20\d{2}))?/);
-  if (!brMatch) return '';
-  const d = Number(brMatch[1]);
-  const m = Number(brMatch[2]);
-  const y = Number(brMatch[3] || new Date().getFullYear());
-  return toValidIso(y, m, d);
-}
-
-function chooseBestPromidiaTemplate(templates = [], targetDate = '') {
-  if (!Array.isArray(templates) || !templates.length) return null;
-  const target = parseIsoDate(targetDate || '') || parseIsoDate(nextSundayIso());
-  if (!target) return null;
-  const withDate = templates
-    .map(row => {
-      const parsed = parseDateFromPlaylistName(row?.name || '');
-      return {
-        row,
-        parsed,
-        dateObj: parseIsoDate(parsed || ''),
-      };
-    })
-    .filter(entry => !!entry.dateObj);
-  if (!withDate.length) return null;
-
-  const windowEnd = new Date(target.getTime());
-  windowEnd.setDate(windowEnd.getDate() + 42);
-  const upcoming = withDate
-    .filter(entry => entry.dateObj >= target && entry.dateObj <= windowEnd)
-    .sort((a, b) => a.dateObj - b.dateObj);
-  if (upcoming.length) return upcoming[0].row;
-
-  const fallback = withDate
-    .sort((a, b) => {
-      const distA = Math.abs(a.dateObj - target);
-      const distB = Math.abs(b.dateObj - target);
-      return distA - distB;
-    })[0];
-  return fallback ? fallback.row : null;
-}
-
-async function listServiceTemplates(limit = 120) {
-  const safeLimit = Math.max(1, Math.min(300, Number(limit) || 120));
-  const [rows] = await db.query(`
-    SELECT s.id, s.service_date, s.playlist_name, s.notes,
-           COUNT(sh.id) AS hymn_count
-    FROM services s
-    LEFT JOIN service_hymns sh ON sh.service_id = s.id
-    GROUP BY s.id, s.service_date, s.playlist_name, s.notes
-    ORDER BY s.service_date DESC
-    LIMIT ?
-  `, [safeLimit]);
-  return rows;
 }
 
 async function loadPlannerCatalogs() {
@@ -128,7 +48,7 @@ async function loadPlannerCatalogs() {
 }
 
 async function listPromidiaPlaylistTemplates(limit = 120) {
-  const safeLimit = Math.max(1, Math.min(300, Number(limit) || 120));
+  const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 300));
   const [rows] = await db.query(`
     SELECT external_playlist_id, name, item_count, updated_at
     FROM promidia_playlists
@@ -140,33 +60,8 @@ async function listPromidiaPlaylistTemplates(limit = 120) {
 }
 
 async function loadCreateTemplates() {
-  const [templateServices, templatePromidiaPlaylists] = await Promise.all([
-    listServiceTemplates(),
-    listPromidiaPlaylistTemplates(),
-  ]);
-  return { templateServices, templatePromidiaPlaylists };
-}
-
-function parseTemplateSelection(rawValue = '') {
-  const raw = String(rawValue || '').trim();
-  if (!raw) return { source: '', id: '', key: '' };
-  if (/^\d+$/.test(raw)) {
-    const id = toPositiveInt(raw, 0);
-    return id ? { source: 'local', id, key: `local:${id}` } : { source: '', id: '', key: '' };
-  }
-  if (!raw.includes(':')) return { source: '', id: '', key: '' };
-  const [sourceRaw, ...rest] = raw.split(':');
-  const source = String(sourceRaw || '').trim().toLowerCase();
-  const tail = rest.join(':');
-  if (source === 'local') {
-    const id = toPositiveInt(tail, 0);
-    return id ? { source: 'local', id, key: `local:${id}` } : { source: '', id: '', key: '' };
-  }
-  if (source === 'promidia') {
-    const id = normalizeShortText(tail, 120);
-    return id ? { source: 'promidia', id, key: `promidia:${id}` } : { source: '', id: '', key: '' };
-  }
-  return { source: '', id: '', key: '' };
+  const templatePromidiaPlaylists = await listPromidiaPlaylistTemplates();
+  return { templatePromidiaPlaylists };
 }
 
 async function loadServiceSlots(serviceId) {
@@ -185,64 +80,17 @@ async function loadServiceSlots(serviceId) {
   return slots;
 }
 
-async function loadPromidiaPlaylistSlots(externalPlaylistId) {
-  const externalId = normalizeShortText(externalPlaylistId, 120);
-  const empty = {
-    slots: Array(5).fill(null),
-    defaultPlaylistName: '',
-    defaultNotes: '',
-  };
-  if (!externalId) return empty;
+async function isPromidiaPlaylistName(name = '') {
+  const normalized = normalizeNullableText(name, 255);
+  if (!normalized) return false;
   const [[row]] = await db.query(
-    `SELECT name, payload_json
+    `SELECT 1
      FROM promidia_playlists
-     WHERE provider = 'promidia' AND external_playlist_id = ?
+     WHERE provider = 'promidia' AND name = ?
      LIMIT 1`,
-    [externalId]
+    [normalized]
   );
-  if (!row) return empty;
-
-  let parsed = null;
-  try {
-    parsed = row.payload_json ? JSON.parse(row.payload_json) : null;
-  } catch {
-    parsed = null;
-  }
-  const items = Array.isArray(parsed?.items) ? parsed.items : [];
-  const hymnExternalIds = items
-    .filter(item => String(item?.kind || '').toLowerCase() === 'hymn')
-    .map(item => normalizeShortText(item.hymnId || item.id || '', 80))
-    .filter(Boolean);
-  if (!hymnExternalIds.length) {
-    return {
-      ...empty,
-      defaultPlaylistName: row.name ? String(row.name) : '',
-      defaultNotes: row.name ? `Base Promidia: ${row.name}` : '',
-    };
-  }
-
-  const [links] = await db.query(
-    `SELECT external_id, hymn_id
-     FROM external_hymn_links
-     WHERE provider = 'promidia' AND external_id IN (?)`,
-    [hymnExternalIds]
-  );
-  const hymnIdByExternal = new Map();
-  links.forEach(link => {
-    const external = normalizeShortText(link.external_id || '', 80);
-    const hymnId = toPositiveInt(link.hymn_id, 0);
-    if (!external || !hymnId || hymnIdByExternal.has(external)) return;
-    hymnIdByExternal.set(external, hymnId);
-  });
-  const orderedLocalIds = hymnExternalIds
-    .map(external => hymnIdByExternal.get(external) || 0)
-    .filter(id => id > 0)
-    .slice(0, 5);
-  return {
-    slots: await buildSlotsFromHymnIds(orderedLocalIds),
-    defaultPlaylistName: row.name ? String(row.name) : '',
-    defaultNotes: row.name ? `Base Promidia: ${row.name}` : '',
-  };
+  return !!row;
 }
 
 async function buildSlotsFromHymnIds(hymnIds = []) {
@@ -283,56 +131,22 @@ router.get('/cultos', requireLogin, asyncHandler(async (req, res) => {
 }));
 
 router.get('/cultos/novo', requireLogin, asyncHandler(async (req, res) => {
-  let templateSelection = parseTemplateSelection(req.query.base || '');
   const requestedDate = normalizeDateOnly(req.query.date || '');
   const templates = await loadCreateTemplates();
   const catalogs = await loadPlannerCatalogs();
-  let slots = Array(5).fill(null);
   const defaultDate = requestedDate || nextSundayIso();
-  let formSeed = {
+  const formSeed = {
     service_date: defaultDate,
     playlist_name: '',
     notes: '',
   };
 
-  if (!templateSelection.source) {
-    const best = chooseBestPromidiaTemplate(templates.templatePromidiaPlaylists, defaultDate);
-    if (best && best.external_playlist_id) {
-      templateSelection = parseTemplateSelection(`promidia:${best.external_playlist_id}`);
-    }
-  }
-
-  if (templateSelection.source === 'local' && templateSelection.id) {
-    const [[sourceService]] = await db.query(
-      'SELECT id, service_date, playlist_name, notes FROM services WHERE id = ?',
-      [templateSelection.id]
-    );
-    if (sourceService) {
-      formSeed = {
-        service_date: defaultDate,
-        playlist_name: sourceService.playlist_name || '',
-        notes: sourceService.notes || '',
-      };
-      slots = await loadServiceSlots(sourceService.id);
-    }
-  } else if (templateSelection.source === 'promidia' && templateSelection.id) {
-    const promidiaSeed = await loadPromidiaPlaylistSlots(templateSelection.id);
-    formSeed = {
-      service_date: defaultDate,
-      playlist_name: promidiaSeed.defaultPlaylistName || '',
-      notes: promidiaSeed.defaultNotes || '',
-    };
-    slots = promidiaSeed.slots;
-  }
-
   res.render('service-form', {
     service: null,
-    slots,
+    slots: Array(5).fill(null),
     error: null,
     formSeed,
-    templateServices: templates.templateServices,
     templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-    sourceTemplateKey: templateSelection.key || '',
     themes: catalogs.themes,
     hymnals: catalogs.hymnals,
   });
@@ -343,7 +157,6 @@ router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
   const playlistName = normalizeNullableText(req.body.playlist_name, 255);
   const notes = normalizeNullableText(req.body.notes, 500);
   const hymnIds = normalizeHymnIdSlots(req.body.hymn_ids);
-  const sourceTemplate = parseTemplateSelection(req.body.base_template || req.body.base_service_id || '');
   const templates = await loadCreateTemplates();
   const catalogs = await loadPlannerCatalogs();
   const slotsForRender = await buildSlotsFromHymnIds(hymnIds);
@@ -359,9 +172,18 @@ router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
       slots: slotsForRender,
       error: 'Data e nome da playlist são obrigatórios.',
       formSeed,
-      templateServices: templates.templateServices,
       templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-      sourceTemplateKey: sourceTemplate.key || '',
+      themes: catalogs.themes,
+      hymnals: catalogs.hymnals,
+    });
+  }
+  if (!await isPromidiaPlaylistName(playlistName)) {
+    return res.status(422).render('service-form', {
+      service: null,
+      slots: slotsForRender,
+      error: 'Selecione uma playlist já sincronizada do Promidia.',
+      formSeed,
+      templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
       themes: catalogs.themes,
       hymnals: catalogs.hymnals,
     });
@@ -387,9 +209,7 @@ router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
         slots: slotsForRender,
         error: 'Já existe um culto registrado para essa data e playlist.',
         formSeed,
-        templateServices: templates.templateServices,
         templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-        sourceTemplateKey: sourceTemplate.key || '',
         themes: catalogs.themes,
         hymnals: catalogs.hymnals,
       });
@@ -412,9 +232,7 @@ router.get('/cultos/:id/editar', requireLogin, asyncHandler(async (req, res) => 
     slots,
     error: null,
     formSeed: null,
-    templateServices: [],
     templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-    sourceTemplateKey: '',
     themes: catalogs.themes,
     hymnals: catalogs.hymnals,
   });
@@ -430,17 +248,28 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
   const hymnIds = normalizeHymnIdSlots(req.body.hymn_ids);
   const catalogs = await loadPlannerCatalogs();
   const templates = await loadCreateTemplates();
+  const slotsForRender = await buildSlotsFromHymnIds(hymnIds);
 
   if (!serviceDate || !playlistName) {
     const [[service]] = await db.query('SELECT * FROM services WHERE id = ?', [serviceId]);
     return res.status(422).render('service-form', {
       service: service || null,
-      slots: Array(5).fill(null),
+      slots: slotsForRender,
       error: 'Data e nome da playlist são obrigatórios.',
       formSeed: null,
-      templateServices: [],
       templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-      sourceTemplateKey: '',
+      themes: catalogs.themes,
+      hymnals: catalogs.hymnals,
+    });
+  }
+  if (!await isPromidiaPlaylistName(playlistName)) {
+    const [[service]] = await db.query('SELECT * FROM services WHERE id = ?', [serviceId]);
+    return res.status(422).render('service-form', {
+      service: service || null,
+      slots: slotsForRender,
+      error: 'Selecione uma playlist já sincronizada do Promidia.',
+      formSeed: null,
+      templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
       themes: catalogs.themes,
       hymnals: catalogs.hymnals,
     });
@@ -464,12 +293,10 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
       const [[service]] = await db.query('SELECT * FROM services WHERE id = ?', [serviceId]);
       return res.status(409).render('service-form', {
         service: service || null,
-        slots: Array(5).fill(null),
+        slots: slotsForRender,
         error: 'Já existe um culto registrado para essa data e playlist.',
         formSeed: null,
-        templateServices: [],
         templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
-        sourceTemplateKey: '',
         themes: catalogs.themes,
         hymnals: catalogs.hymnals,
       });
