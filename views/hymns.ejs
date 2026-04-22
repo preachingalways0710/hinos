@@ -25,22 +25,61 @@
 
   <div class="container">
     <div class="page-header">
-      <h1>Hinos <span class="count-badge"><%= hymns.length %></span></h1>
-      <a href="/hinos/novo" class="btn btn-primary">+ Adicionar Hino</a>
+      <h1>Hinos <span class="count-badge"><%= total %></span></h1>
+      <div class="hymn-toolbar">
+        <form method="GET" action="/hinos" class="hymn-search-inline">
+          <input type="search" name="q" value="<%= q || '' %>" placeholder="Buscar por título, número, hinário..." class="hymn-search-input">
+          <% if (themeId > 0) { %><input type="hidden" name="theme" value="<%= themeId %>"><% } %>
+          <% if (hymnalCode) { %><input type="hidden" name="hymnal" value="<%= hymnalCode %>"><% } %>
+          <button type="submit" class="btn btn-secondary btn-sm">Buscar</button>
+        </form>
+        <a href="/hinos/novo" class="btn btn-primary">+ Adicionar Hino</a>
+      </div>
     </div>
 
-    <div class="theme-filter">
-      <a href="/hinos" class="<%= themeId === 0 ? 'active' : '' %>">Todos</a>
-      <% themes.forEach(function(t) { %>
-        <a href="/hinos?theme=<%= t.id %>" class="<%= themeId === t.id ? 'active' : '' %>"><%= t.name %></a>
+    <div class="filter-pills library-filter">
+      <a href="<%= buildListUrl({ hymnal: '', page: 1 }) %>" class="<%= hymnalCode ? '' : 'active' %>">Todos</a>
+      <% hymnals.forEach(function(hy) { %>
+        <a href="<%= buildListUrl({ hymnal: hy.code, page: 1 }) %>" class="<%= hymnalCode === hy.code ? 'active' : '' %>"><%= hy.code %></a>
       <% }); %>
+    </div>
+
+    <form method="GET" action="/hinos" class="hymn-secondary-filters card">
+      <div class="hymn-secondary-grid">
+        <div class="form-group">
+          <label for="hymn-theme-filter">Tema (opcional)</label>
+          <select id="hymn-theme-filter" name="theme">
+            <option value="">Todos os temas</option>
+            <% themes.forEach(function(t) { %>
+              <option value="<%= t.id %>" <%= themeId === t.id ? 'selected' : '' %>><%= t.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-secondary btn-sm">Aplicar Filtros</button>
+            <a href="/hinos" class="btn btn-sm">Limpar</a>
+          </div>
+        </div>
+      </div>
+      <% if (q) { %><input type="hidden" name="q" value="<%= q %>"><% } %>
+      <% if (hymnalCode) { %><input type="hidden" name="hymnal" value="<%= hymnalCode %>"><% } %>
+    </form>
+
+    <div class="list-meta">
+      <% if (total > 0) { %>
+        Mostrando <strong><%= ((page - 1) * pageSize) + 1 %>-<%= Math.min(page * pageSize, total) %></strong> de <strong><%= total %></strong> hinos.
+      <% } else { %>
+        Nenhum hino encontrado para os filtros atuais.
+      <% } %>
     </div>
 
     <% if (hymns.length === 0) { %>
       <div class="card">
         <p class="empty-msg">
-          <% if (themeId > 0) { %>
-            Nenhum hino com esse tema. <a href="/hinos">Ver todos</a>.
+          <% if (q || hymnalCode || themeId > 0) { %>
+            Nenhum hino corresponde aos filtros. <a href="/hinos">Ver todos</a>.
           <% } else { %>
             Nenhum hino cadastrado ainda. <a href="/hinos/novo">Adicionar primeiro hino</a>.
           <% } %>
@@ -87,6 +126,16 @@
           </tbody>
         </table>
       </div>
+
+      <% if (pageCount > 1) { %>
+        <div class="pagination-wrap">
+          <a class="btn btn-sm <%= page <= 1 ? 'btn-disabled' : '' %>" href="<%= page <= 1 ? '#' : buildListUrl({ page: page - 1 }) %>">← Anterior</a>
+          <% pageItems.forEach(function(pn) { %>
+            <a class="btn btn-sm <%= pn === page ? 'btn-primary' : '' %>" href="<%= buildListUrl({ page: pn }) %>"><%= pn %></a>
+          <% }); %>
+          <a class="btn btn-sm <%= page >= pageCount ? 'btn-disabled' : '' %>" href="<%= page >= pageCount ? '#' : buildListUrl({ page: page + 1 }) %>">Próxima →</a>
+        </div>
+      <% } %>
     <% } %>
   </div>
 

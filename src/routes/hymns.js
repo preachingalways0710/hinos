@@ -14,7 +14,58 @@ const {
 const router = express.Router();
 
 router.get('/hinos', requireLogin, asyncHandler(async (req, res) => {
+  const q = normalizeShortText(req.query.q || '', 120);
   const themeId = toPositiveInt(req.query.theme, 0);
+  const hymnalCode = normalizeShortText(req.query.hymnal || '', 20).toUpperCase();
+  const pageSize = 60;
+  const page = Math.max(1, toInt(req.query.page, 1));
+
+  const where = [];
+  const whereParams = [];
+
+  if (themeId > 0) {
+    where.push(`EXISTS (
+      SELECT 1 FROM hymn_themes ht2
+      WHERE ht2.hymn_id = h.id AND ht2.theme_id = ?
+    )`);
+    whereParams.push(themeId);
+  }
+  if (hymnalCode) {
+    where.push('hy.code = ?');
+    whereParams.push(hymnalCode);
+  }
+  if (q) {
+    const like = `%${q}%`;
+    where.push(`(
+      h.title LIKE ?
+      OR h.english_title LIKE ?
+      OR CAST(h.number AS CHAR) LIKE ?
+      OR CONCAT(hy.code, ' ', h.number) LIKE ?
+      OR EXISTS (
+        SELECT 1
+        FROM hymn_themes htx
+        JOIN themes tx ON tx.id = htx.theme_id
+        WHERE htx.hymn_id = h.id
+          AND tx.name LIKE ?
+      )
+    )`);
+    whereParams.push(like, like, like, like, like);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const [[countRow]] = await db.query(`
+    SELECT COUNT(*) AS total
+    FROM hymns h
+    JOIN hymnals hy ON hy.id = h.hymnal_id
+    ${whereSql}
+  `, whereParams);
+
+  const total = Number(countRow?.total || 0);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const offset = (safePage - 1) * pageSize;
+
   const [hymns] = await db.query(`
     SELECT h.id, h.number, h.title, h.english_title, hy.code AS hymnal,
            MAX(s.service_date) AS last_used,
@@ -25,15 +76,52 @@ router.get('/hinos', requireLogin, asyncHandler(async (req, res) => {
     LEFT JOIN themes t       ON t.id = ht.theme_id
     LEFT JOIN service_hymns sh ON sh.hymn_id = h.id
     LEFT JOIN services s       ON s.id = sh.service_id
-    WHERE (? = 0 OR EXISTS (
-      SELECT 1 FROM hymn_themes ht2
-      WHERE ht2.hymn_id = h.id AND ht2.theme_id = ?
-    ))
+    ${whereSql}
     GROUP BY h.id, h.number, h.title, h.english_title, hy.code
     ORDER BY (MAX(s.service_date) IS NULL) DESC, MAX(s.service_date) ASC, hy.code ASC, h.number ASC
-  `, [themeId, themeId]);
+    LIMIT ? OFFSET ?
+  `, [...whereParams, pageSize, offset]);
+
   const [themes] = await db.query('SELECT * FROM themes ORDER BY name');
-  res.render('hymns', { hymns, themes, themeId });
+  const [hymnals] = await db.query('SELECT code, name FROM hymnals ORDER BY code');
+
+  function buildListUrl(overrides = {}) {
+    const merged = {
+      q,
+      theme: themeId > 0 ? String(themeId) : '',
+      hymnal: hymnalCode,
+      page: String(safePage),
+      ...overrides,
+    };
+    const params = new URLSearchParams();
+    Object.entries(merged).forEach(([key, value]) => {
+      const raw = String(value ?? '').trim();
+      if (!raw || raw === '0') return;
+      params.set(key, raw);
+    });
+    const query = params.toString();
+    return query ? `/hinos?${query}` : '/hinos';
+  }
+
+  const pageItems = [];
+  const windowStart = Math.max(1, safePage - 2);
+  const windowEnd = Math.min(pageCount, safePage + 2);
+  for (let i = windowStart; i <= windowEnd; i += 1) pageItems.push(i);
+
+  res.render('hymns', {
+    hymns,
+    themes,
+    hymnals,
+    q,
+    themeId,
+    hymnalCode,
+    total,
+    pageSize,
+    page: safePage,
+    pageCount,
+    pageItems,
+    buildListUrl,
+  });
 }));
 
 router.get('/hinos/novo', requireLogin, asyncHandler(async (req, res) => {

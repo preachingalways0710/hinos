@@ -193,13 +193,13 @@ tbody tr:hover td { background: #fafafa; }
 .last-used  { color: #6b7280; font-size: 13px; }
 
 /* ─── Theme filter pills ────────────────────────────────────────────────────── */
-.theme-filter {
+.filter-pills {
   display: flex;
   flex-wrap: wrap;
   gap: .4rem;
   margin-bottom: 1.25rem;
 }
-.theme-filter a {
+.filter-pills a {
   display: inline-block;
   padding: .3rem .8rem;
   border-radius: 20px;
@@ -209,8 +209,50 @@ tbody tr:hover td { background: #fafafa; }
   color: #374151;
   transition: background 0.15s, color 0.15s;
 }
-.theme-filter a:hover { background: #d1d5db; text-decoration: none; }
-.theme-filter a.active { background: #7c3aed; color: #fff; }
+.filter-pills a:hover { background: #d1d5db; text-decoration: none; }
+.filter-pills a.active { background: #7c3aed; color: #fff; }
+.library-filter { margin-bottom: .8rem; }
+
+.hymn-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.hymn-search-inline {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.hymn-search-input {
+  width: 320px;
+  max-width: 60vw;
+}
+.hymn-secondary-filters {
+  padding: .85rem 1rem;
+}
+.hymn-secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .8rem;
+  align-items: end;
+}
+.list-meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 .75rem 0;
+}
+.pagination-wrap {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: .9rem;
+}
+.btn-disabled {
+  opacity: .5;
+  pointer-events: none;
+}
 
 /* ─── Forms ─────────────────────────────────────────────────────────────────── */
 .form-group { margin-bottom: 1.1rem; }
@@ -448,4 +490,7 @@ textarea { resize: vertical; min-height: 80px; }
   th, td { padding: .55rem .75rem; }
   .stats-row { gap: .75rem; }
   .stat-card { padding: .85rem 1rem; }
+  .hymn-search-input { width: 100%; max-width: none; }
+  .hymn-search-inline { width: 100%; }
+  .hymn-secondary-grid { grid-template-columns: 1fr; }
 }
