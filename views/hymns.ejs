@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hinos</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=<%= appVersion %>">
   <meta name="csrf-token" content="<%= csrfToken %>">
 </head>
 <body>
@@ -122,7 +122,8 @@
                     type="button"
                     class="btn btn-primary btn-sm js-add-to-culto"
                     data-hymn-id="<%= h.id %>"
-                    data-hymn-title="<%= h.hymnal %> <%= h.number %> — <%= h.title %>">
+                    data-hymn-title="<%= h.hymnal %> <%= h.number %> — <%= h.title %>"
+                    onclick="openAddToCultoModal(this.dataset.hymnId, this.dataset.hymnTitle); return false;">
                     + Culto
                   </button>
                   <a href="/hinos/<%= h.id %>/editar" class="btn btn-secondary btn-sm">Editar</a>
@@ -275,7 +276,9 @@
     }
 
     document.addEventListener('click', function(e) {
-      const btn = e.target.closest('.js-add-to-culto');
+      const target = e.target;
+      if (!target || typeof target.closest !== 'function') return;
+      const btn = target.closest('.js-add-to-culto');
       if (!btn) return;
       e.preventDefault();
       openAddToCultoModal(btn.dataset.hymnId, btn.dataset.hymnTitle);

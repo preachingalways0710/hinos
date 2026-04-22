@@ -327,10 +327,19 @@ textarea { resize: vertical; min-height: 80px; }
 /* ─── Service planner slots ─────────────────────────────────────────────────── */
 .slots { display: flex; flex-direction: column; gap: .65rem; }
 .planner-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 34%) minmax(0, 1fr);
+  display: flex;
+  flex-wrap: nowrap;
   gap: 1rem;
   align-items: start;
+}
+.planner-main {
+  flex: 0 0 34%;
+  max-width: 34%;
+  min-width: 300px;
+}
+.planner-browser {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .planner-main .form-row { grid-template-columns: 1fr; }
 .slot {
@@ -598,7 +607,11 @@ textarea { resize: vertical; min-height: 80px; }
 /* ─── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }
-  .planner-grid { grid-template-columns: 1fr; }
+  .planner-grid { display: block; }
+  .planner-main {
+    max-width: none;
+    min-width: 0;
+  }
   .container { padding: 0 1rem; margin: 1rem auto; }
   nav a { padding: .75rem .6rem; font-size: 13px; }
   nav .brand { padding-right: .5rem; }
