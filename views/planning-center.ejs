@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Planning Center</title>
+  <title>Integrações</title>
   <link rel="stylesheet" href="/style.css">
   <meta name="csrf-token" content="<%= csrfToken %>">
 </head>
@@ -13,8 +13,8 @@
     <a href="/hinos" class="<%= path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
     <a href="/cultos" class="<%= path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
     <a href="/temas" class="<%= path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
-    <a href="/integracoes/planning-center" class="<%= path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Planning Center</a>
-    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
+    <a href="/integracoes/planning-center" class="<%= path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Integrações</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Logs de Sync</a>
     <span class="spacer"></span>
     <span class="nav-version">v <%= appVersion %></span>
     <form method="POST" action="/logout" style="display:inline">
@@ -25,8 +25,42 @@
 
   <div class="container">
     <div class="page-header">
-      <h1>Planning Center</h1>
+      <h1>Integrações e Planejamento</h1>
       <a href="/cultos" class="btn btn-secondary">← Voltar para Cultos</a>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Planejamento Simples (Recomendado)</h2>
+      <p class="form-hint" style="margin-bottom:.85rem">
+        Para voluntários: trate cada culto como uma playlist. Crie novo ou abra um existente e comece a buscar/adicionar hinos.
+      </p>
+
+      <div class="form-actions" style="flex-wrap:wrap">
+        <a href="/cultos/novo" class="btn btn-primary">Criar novo plano (playlist)</a>
+        <a href="/cultos" class="btn btn-secondary">Ver todos os planos</a>
+      </div>
+
+      <% if (recentServices && recentServices.length) { %>
+        <div class="form-row" style="margin-top:1rem">
+          <div class="form-group">
+            <label for="quick-existing-service">Abrir plano existente</label>
+            <select id="quick-existing-service">
+              <option value="">Selecione um culto...</option>
+              <% recentServices.forEach(function(svc) { %>
+                <option value="<%= svc.id %>">
+                  <%= svc.service_date %> — <%= SERVICE_LABELS[svc.service_type] || svc.service_type %><%= svc.notes ? (' — ' + svc.notes) : '' %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <div class="form-actions">
+              <button id="quick-open-existing" class="btn btn-secondary" type="button" disabled>Abrir selecionado</button>
+            </div>
+          </div>
+        </div>
+      <% } %>
     </div>
 
     <div class="card">
@@ -34,16 +68,18 @@
         <div class="alert alert-error"><%= error %></div>
       <% } %>
 
+      <h2 class="card-title">Planning Center (Avançado)</h2>
+
       <div class="pc-status-row">
         <div>
           <strong>Status:</strong>
           <span id="pc-status-text">
             <% if (!status.configured) { %>
-              Não configurado (.env)
+              Não configurado no servidor
             <% } else if (!status.connected) { %>
-              Desconectado
+              Configurado, mas desconectado
             <% } else { %>
-              Conectado <%= status.profile && status.profile.name ? 'como ' + status.profile.name : '' %>
+              Conectado <%= status.profile && status.profile.name ? ('como ' + status.profile.name) : '' %>
             <% } %>
           </span>
         </div>
@@ -67,99 +103,125 @@
           <button type="submit" class="btn btn-secondary" <%= status.connected ? '' : 'disabled' %>>Desconectar</button>
         </form>
       </div>
+
       <% if (!status.configured) { %>
-        <p class="form-hint">Configure <code>PCO_CLIENT_ID</code>, <code>PCO_CLIENT_SECRET</code> e <code>PCO_REDIRECT_URI</code> no servidor.</p>
+        <div class="alert alert-warn" style="margin-top:.8rem">
+          Integração PCO não configurada. Defina no servidor: <code>PCO_CLIENT_ID</code>, <code>PCO_CLIENT_SECRET</code> e <code>PCO_REDIRECT_URI</code>.
+          Enquanto isso, use o <strong>Planejamento Simples</strong> acima.
+        </div>
       <% } %>
     </div>
 
-    <div class="card">
-      <h2 class="card-title">Importar Plano</h2>
-      <div id="pc-message" class="form-hint">Selecione service type e plano para gerar preview.</div>
+    <% if (status.configured && status.connected) { %>
+      <div class="card">
+        <h2 class="card-title">Importar Plano do Planning Center</h2>
+        <div id="pc-message" class="form-hint">Selecione tipo de serviço e plano para gerar prévia.</div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label for="pc-service-type">Service Type</label>
-          <select id="pc-service-type">
-            <option value="">Carregando...</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="pc-plan">Plano</label>
-          <select id="pc-plan">
-            <option value="">Selecione um service type</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="pc-tolerance">Tolerância de Match</label>
-          <select id="pc-tolerance">
-            <option value="strict">Strict</option>
-            <option value="balanced" selected>Balanced</option>
-            <option value="aggressive">Aggressive</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="pc-import-mode">Modo de Import</label>
-          <select id="pc-import-mode">
-            <option value="append" selected>Append</option>
-            <option value="replace">Replace</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="pc-local-date">Data local do culto</label>
-          <input type="date" id="pc-local-date">
-        </div>
-        <div class="form-group">
-          <label for="pc-local-type">Tipo de culto local</label>
-          <select id="pc-local-type">
-            <option value="dom_manha">Domingo Manhã</option>
-            <option value="dom_noite">Domingo Noite</option>
-            <option value="qua">Quarta-Feira</option>
-            <option value="especial">Culto Especial</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="pc-max-slots">Máximo de hinos (UI atual suporta 5)</label>
-          <input type="number" id="pc-max-slots" min="1" max="5" value="5">
-        </div>
-        <div class="form-group">
-          <label>&nbsp;</label>
-          <div class="form-actions">
-            <button id="pc-preview-btn" class="btn btn-secondary" type="button">Gerar Preview</button>
-            <button id="pc-import-btn" class="btn btn-primary" type="button" disabled>Importar para Cultos</button>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pc-service-type">Tipo de serviço (Planning Center)</label>
+            <select id="pc-service-type">
+              <option value="">Carregando...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pc-plan">Plano</label>
+            <select id="pc-plan">
+              <option value="">Selecione um tipo de serviço</option>
+            </select>
           </div>
         </div>
-      </div>
 
-      <div class="pc-summary" id="pc-summary">Sem preview.</div>
-      <div class="pc-preview-wrap">
-        <table id="pc-preview-table">
-          <thead>
-            <tr>
-              <th style="width:60px">#</th>
-              <th>Item</th>
-              <th style="width:100px">Tipo</th>
-              <th style="width:100px">Status</th>
-              <th>Match</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="5" class="muted">Nenhum preview carregado.</td></tr>
-          </tbody>
-        </table>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pc-tolerance">Tolerância de correspondência</label>
+            <select id="pc-tolerance">
+              <option value="strict">Rigorosa</option>
+              <option value="balanced" selected>Equilibrada</option>
+              <option value="aggressive">Agressiva</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pc-import-mode">Modo de importação</label>
+            <select id="pc-import-mode">
+              <option value="append" selected>Adicionar ao culto</option>
+              <option value="replace">Substituir culto</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pc-local-date">Data do culto no Hinos</label>
+            <input type="date" id="pc-local-date">
+          </div>
+          <div class="form-group">
+            <label for="pc-local-type">Tipo de culto no Hinos</label>
+            <select id="pc-local-type">
+              <option value="dom_manha">Domingo Manhã</option>
+              <option value="dom_noite">Domingo Noite</option>
+              <option value="qua">Quarta-Feira</option>
+              <option value="especial">Culto Especial</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pc-max-slots">Máximo de hinos (limite atual: 5)</label>
+            <input type="number" id="pc-max-slots" min="1" max="5" value="5">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <div class="form-actions">
+              <button id="pc-preview-btn" class="btn btn-secondary" type="button">Gerar prévia</button>
+              <button id="pc-import-btn" class="btn btn-primary" type="button" disabled>Importar para cultos</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pc-summary" id="pc-summary">Sem prévia.</div>
+        <div class="pc-preview-wrap">
+          <table id="pc-preview-table">
+            <thead>
+              <tr>
+                <th style="width:60px">#</th>
+                <th>Item</th>
+                <th style="width:110px">Tipo</th>
+                <th style="width:120px">Status</th>
+                <th>Correspondência</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5" class="muted">Nenhuma prévia carregada.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    <% } else { %>
+      <div class="card">
+        <h2 class="card-title">Importar Plano do Planning Center</h2>
+        <p class="empty-msg" style="padding:0">
+          Esta seção fica disponível quando a integração PCO estiver configurada e conectada.
+          Use o <strong>Planejamento Simples</strong> acima para montar cultos agora.
+        </p>
+      </div>
+    <% } %>
   </div>
 
   <script>
+    const quickSelectEl = document.getElementById('quick-existing-service');
+    const quickOpenBtn = document.getElementById('quick-open-existing');
+    if (quickSelectEl && quickOpenBtn) {
+      quickSelectEl.addEventListener('change', () => {
+        quickOpenBtn.disabled = !quickSelectEl.value;
+      });
+      quickOpenBtn.addEventListener('click', () => {
+        if (!quickSelectEl.value) return;
+        window.location.href = '/cultos/' + encodeURIComponent(quickSelectEl.value) + '/editar';
+      });
+    }
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     const status = <%- JSON.stringify(status || {}) %>;
     let previewPayload = null;
@@ -178,25 +240,27 @@
     const tableBody = document.querySelector('#pc-preview-table tbody');
 
     function setMessage(msg) {
+      if (!messageEl) return;
       messageEl.textContent = msg || '';
     }
 
-    function statusBadge(status) {
-      if (status === 'matched') return '<span class="badge badge-ok">matched</span>';
-      if (status === 'ambiguous') return '<span class="badge badge-warn">ambiguous</span>';
-      return '<span class="badge badge-error">unmatched</span>';
+    function statusBadge(statusValue) {
+      if (statusValue === 'matched') return '<span class="badge badge-ok">correspondido</span>';
+      if (statusValue === 'ambiguous') return '<span class="badge badge-warn">ambíguo</span>';
+      return '<span class="badge badge-error">não encontrado</span>';
     }
 
     function renderPreview(preview) {
+      if (!importBtn || !summaryEl || !tableBody) return;
       previewPayload = preview;
       importBtn.disabled = !preview;
       if (!preview || !Array.isArray(preview.items) || !preview.items.length) {
-        summaryEl.textContent = 'Sem preview.';
-        tableBody.innerHTML = '<tr><td colspan="5" class="muted">Nenhum preview carregado.</td></tr>';
+        summaryEl.textContent = 'Sem prévia.';
+        tableBody.innerHTML = '<tr><td colspan="5" class="muted">Nenhuma prévia carregada.</td></tr>';
         return;
       }
       const summary = preview.summary || {};
-      summaryEl.textContent = `Total: ${summary.total || 0} | matched: ${summary.matched || 0} | ambiguous: ${summary.ambiguous || 0} | unmatched: ${summary.unmatched || 0}`;
+      summaryEl.textContent = `Total: ${summary.total || 0} | correspondidos: ${summary.matched || 0} | ambíguos: ${summary.ambiguous || 0} | não encontrados: ${summary.unmatched || 0}`;
       tableBody.innerHTML = preview.items.map(item => {
         const match = item.match || {};
         const top = (match.candidates || [])[0];
@@ -239,16 +303,17 @@
     }
 
     async function loadServiceTypes() {
+      if (!serviceTypeEl || !planEl) return;
       if (!status.connected) {
         serviceTypeEl.innerHTML = '<option value="">Conecte sua conta primeiro</option>';
         planEl.innerHTML = '<option value="">Conecte sua conta primeiro</option>';
         return;
       }
       const response = await getJson('/api/planning-center/service-types');
-      if (!response.ok) throw new Error(response.error || 'Falha ao carregar service types.');
+      if (!response.ok) throw new Error(response.error || 'Falha ao carregar tipos de serviço.');
       const rows = response.serviceTypes || [];
       if (!rows.length) {
-        serviceTypeEl.innerHTML = '<option value="">Nenhum service type encontrado</option>';
+        serviceTypeEl.innerHTML = '<option value="">Nenhum tipo de serviço encontrado</option>';
         return;
       }
       serviceTypeEl.innerHTML = rows.map(row => `<option value="${row.id}">${row.name}</option>`).join('');
@@ -256,9 +321,10 @@
     }
 
     async function loadPlans() {
+      if (!serviceTypeEl || !planEl) return;
       const serviceTypeId = serviceTypeEl.value;
       if (!serviceTypeId) {
-        planEl.innerHTML = '<option value="">Selecione um service type</option>';
+        planEl.innerHTML = '<option value="">Selecione um tipo de serviço</option>';
         return;
       }
       const response = await getJson('/api/planning-center/plans?serviceTypeId=' + encodeURIComponent(serviceTypeId));
@@ -274,77 +340,79 @@
       }).join('');
     }
 
-    serviceTypeEl.addEventListener('change', async () => {
-      try {
-        await loadPlans();
-        renderPreview(null);
-      } catch (err) {
-        setMessage(err.message || 'Erro ao carregar planos.');
-      }
-    });
+    if (serviceTypeEl && planEl && previewBtn && importBtn) {
+      serviceTypeEl.addEventListener('change', async () => {
+        try {
+          await loadPlans();
+          renderPreview(null);
+        } catch (err) {
+          setMessage(err.message || 'Erro ao carregar planos.');
+        }
+      });
 
-    previewBtn.addEventListener('click', async () => {
-      try {
-        const serviceTypeId = serviceTypeEl.value;
-        const planId = planEl.value;
-        if (!serviceTypeId || !planId) {
-          setMessage('Selecione service type e plano.');
-          return;
+      previewBtn.addEventListener('click', async () => {
+        try {
+          const serviceTypeId = serviceTypeEl.value;
+          const planId = planEl.value;
+          if (!serviceTypeId || !planId) {
+            setMessage('Selecione tipo de serviço e plano.');
+            return;
+          }
+          setMessage('Gerando prévia...');
+          const response = await getJson(
+            '/api/planning-center/preview?serviceTypeId=' + encodeURIComponent(serviceTypeId)
+            + '&planId=' + encodeURIComponent(planId)
+            + '&tolerance=' + encodeURIComponent(toleranceEl.value)
+          );
+          if (!response.ok) throw new Error(response.error || 'Falha na prévia.');
+          renderPreview(response.preview);
+          if (response.preview && response.preview.planDate && !localDateEl.value) {
+            localDateEl.value = String(response.preview.planDate).slice(0, 10);
+          }
+          setMessage('Prévia pronta.');
+        } catch (err) {
+          setMessage(err.message || 'Erro ao gerar prévia.');
         }
-        setMessage('Gerando preview...');
-        const response = await getJson(
-          '/api/planning-center/preview?serviceTypeId=' + encodeURIComponent(serviceTypeId)
-          + '&planId=' + encodeURIComponent(planId)
-          + '&tolerance=' + encodeURIComponent(toleranceEl.value)
-        );
-        if (!response.ok) throw new Error(response.error || 'Falha no preview.');
-        renderPreview(response.preview);
-        if (response.preview && response.preview.planDate && !localDateEl.value) {
-          localDateEl.value = String(response.preview.planDate).slice(0, 10);
-        }
-        setMessage('Preview pronto.');
-      } catch (err) {
-        setMessage(err.message || 'Erro ao gerar preview.');
-      }
-    });
+      });
 
-    importBtn.addEventListener('click', async () => {
-      try {
-        if (!previewPayload) {
-          setMessage('Gere preview antes de importar.');
-          return;
+      importBtn.addEventListener('click', async () => {
+        try {
+          if (!previewPayload) {
+            setMessage('Gere a prévia antes de importar.');
+            return;
+          }
+          if (!localDateEl.value || !localTypeEl.value) {
+            setMessage('Defina data e tipo do culto no Hinos.');
+            return;
+          }
+          if (importModeEl.value === 'replace') {
+            if (!confirm('Substituir culto existente para essa data/tipo (se houver)?')) return;
+          }
+          setMessage('Importando...');
+          const response = await postJson('/api/planning-center/import', {
+            serviceTypeId: serviceTypeEl.value,
+            planId: planEl.value,
+            tolerance: toleranceEl.value,
+            localDate: localDateEl.value,
+            localServiceType: localTypeEl.value,
+            importMode: importModeEl.value,
+            maxSlots: Number(maxSlotsEl.value || 5),
+          });
+          if (!response.ok) throw new Error(response.error || 'Falha na importação.');
+          setMessage(`Importado com sucesso: ${response.result.importedCount} hino(s).`);
+        } catch (err) {
+          setMessage(err.message || 'Erro ao importar.');
         }
-        if (!localDateEl.value || !localTypeEl.value) {
-          setMessage('Defina data e tipo do culto local.');
-          return;
-        }
-        if (importModeEl.value === 'replace') {
-          if (!confirm('Substituir culto existente para essa data/tipo (se houver)?')) return;
-        }
-        setMessage('Importando...');
-        const response = await postJson('/api/planning-center/import', {
-          serviceTypeId: serviceTypeEl.value,
-          planId: planEl.value,
-          tolerance: toleranceEl.value,
-          localDate: localDateEl.value,
-          localServiceType: localTypeEl.value,
-          importMode: importModeEl.value,
-          maxSlots: Number(maxSlotsEl.value || 5),
-        });
-        if (!response.ok) throw new Error(response.error || 'Falha no import.');
-        setMessage(`Importado com sucesso: ${response.result.importedCount} hino(s).`);
-      } catch (err) {
-        setMessage(err.message || 'Erro ao importar.');
-      }
-    });
+      });
 
-    (async () => {
-      try {
-        await loadServiceTypes();
-      } catch (err) {
-        setMessage(err.message || 'Falha ao inicializar integração.');
-      }
-    })();
+      (async () => {
+        try {
+          await loadServiceTypes();
+        } catch (err) {
+          setMessage(err.message || 'Falha ao inicializar integração.');
+        }
+      })();
+    }
   </script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const { db } = require('../db/pool');
 const { asyncHandler } = require('../utils/async');
 const { requireLogin } = require('../middleware/auth');
 const {
@@ -24,8 +25,15 @@ const router = express.Router();
 
 router.get('/integracoes/planning-center', requireLogin, asyncHandler(async (req, res) => {
   const status = await getStatus();
+  const [recentServices] = await db.query(`
+    SELECT id, service_date, service_type, notes
+    FROM services
+    ORDER BY service_date DESC
+    LIMIT 40
+  `);
   res.render('planning-center', {
     status,
+    recentServices,
     error: null,
     result: null,
   });
