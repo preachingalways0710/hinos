@@ -28,6 +28,60 @@
       <a href="/integracoes/planning-center" class="btn btn-secondary">← Integrações</a>
     </div>
 
+    <div class="card">
+      <h2 class="card-title">Conectar Promidia (setup rápido)</h2>
+      <div class="pc-status-hints" style="margin-bottom:.75rem">
+        <% if (syncAuth && syncAuth.envConfigured) { %>
+          <span class="badge badge-info">Token por ENV ativo</span>
+        <% } %>
+        <% if (syncAuth && syncAuth.managedConfigured) { %>
+          <span class="badge badge-ok">Token gerenciado ativo</span>
+        <% } else { %>
+          <span class="badge badge-warn">Token gerenciado ausente</span>
+        <% } %>
+      </div>
+
+      <% if (syncAuth && syncAuth.envConfigured) { %>
+        <div class="alert alert-warn">
+          Token por <code>.env</code> detectado. Ele tem prioridade sobre token gerenciado pela tela.
+        </div>
+      <% } %>
+
+      <div class="form-group">
+        <label>Endpoint para colar no Promidia</label>
+        <div class="sync-inline-copy">
+          <input id="sync-endpoint" type="text" readonly value="<%= endpoint %>">
+          <button type="button" class="btn btn-secondary btn-sm" data-copy-target="sync-endpoint">Copiar</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <form method="POST" action="/integracoes/sync-token/regenerate">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-primary">Gerar novo token</button>
+        </form>
+        <form method="POST" action="/integracoes/sync-token/clear">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-secondary">Remover token gerenciado</button>
+        </form>
+      </div>
+
+      <% if (syncAuth && syncAuth.managedConfigured && syncAuth.managedTokenPrefix) { %>
+        <p class="form-hint">Token atual: <code><%= syncAuth.managedTokenPrefix %>******</code> <%= syncAuth.managedUpdatedAt ? ('(atualizado em ' + syncAuth.managedUpdatedAt + ')') : '' %></p>
+      <% } %>
+
+      <% if (oneTimeToken) { %>
+        <div class="sync-token-box">
+          <div class="sync-token-title">Novo token (mostrado só agora)</div>
+          <div class="sync-inline-copy">
+            <input id="sync-token-once" type="text" readonly value="<%= oneTimeToken %>">
+            <button type="button" class="btn btn-secondary btn-sm" data-copy-target="sync-token-once">Copiar</button>
+          </div>
+          <div class="form-hint">Cole no Promidia em: <strong>Sync Site → Sync Token</strong>.</div>
+        </div>
+      <% } %>
+    </div>
+
     <div class="card card-table">
       <% if (!logs || logs.length === 0) { %>
         <div class="empty-msg" style="padding:1rem">Nenhum sync registrado ainda.</div>
@@ -79,5 +133,30 @@
       <% } %>
     </div>
   </div>
+
+  <script>
+    async function copyFromInput(targetId) {
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      const value = input.value || '';
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        input.focus();
+        input.select();
+        document.execCommand('copy');
+      }
+    }
+
+    document.querySelectorAll('[data-copy-target]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const target = btn.getAttribute('data-copy-target');
+        await copyFromInput(target);
+        const old = btn.textContent;
+        btn.textContent = 'Copiado';
+        setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+  </script>
 </body>
 </html>

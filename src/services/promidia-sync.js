@@ -2,11 +2,13 @@
 
 const crypto = require('crypto');
 const { db } = require('../db/pool');
+const { getSetting, setSetting, deleteSetting } = require('../db/settings-store');
 const { config } = require('../config');
 const { normalizeShortText, toInt } = require('../utils/validation');
 const { constantTimeEqual } = require('../utils/security');
 
 const PROVIDER = 'promidia';
+const MANAGED_SYNC_TOKEN_KEY = 'promidia_sync_auth';
 
 const THEME_RULES = [
   { theme: 'Adoração', patterns: ['adora', 'worship', 'louvor', 'praise', 'gloria', 'glória'] },
@@ -82,6 +84,53 @@ function mergeNotes(existingNotes = '', managedFragment = '') {
 
 function payloadHash(row = {}) {
   return crypto.createHash('sha256').update(JSON.stringify(row)).digest('hex');
+}
+
+function hashSyncToken(value = '') {
+  return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+async function getManagedSyncAuth() {
+  const saved = await getSetting(MANAGED_SYNC_TOKEN_KEY);
+  if (!saved || typeof saved !== 'object') return null;
+  const tokenHash = normalizeShortText(saved.tokenHash || '', 128).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(tokenHash)) return null;
+  return {
+    tokenHash,
+    tokenPrefix: normalizeShortText(saved.tokenPrefix || '', 16),
+    updatedAt: normalizeShortText(saved.updatedAt || '', 60) || null,
+  };
+}
+
+async function getSyncAuthStatus() {
+  const envToken = String(config.integrations.promidiaSyncToken || '').trim();
+  const managed = await getManagedSyncAuth();
+  return {
+    envConfigured: !!envToken,
+    managedConfigured: !!(managed && managed.tokenHash),
+    managedTokenPrefix: managed?.tokenPrefix || '',
+    managedUpdatedAt: managed?.updatedAt || null,
+    acceptsManagedFallback: !envToken,
+  };
+}
+
+async function rotateManagedSyncToken() {
+  const token = crypto.randomBytes(33).toString('base64url');
+  const payload = {
+    tokenHash: hashSyncToken(token),
+    tokenPrefix: token.slice(0, 6),
+    updatedAt: new Date().toISOString(),
+  };
+  await setSetting(MANAGED_SYNC_TOKEN_KEY, payload);
+  return {
+    token,
+    tokenPrefix: payload.tokenPrefix,
+    updatedAt: payload.updatedAt,
+  };
+}
+
+async function clearManagedSyncToken() {
+  await deleteSetting(MANAGED_SYNC_TOKEN_KEY);
 }
 
 async function loadThemeLookup(conn) {
@@ -166,35 +215,51 @@ async function findLinkedHymn(conn, externalId) {
 async function findFallbackHymn(conn, hymnalId, number, title) {
   if (number > 0) {
     const [[byNumber]] = await conn.query(
-      'SELECT id, notes FROM hymns WHERE hymnal_id = ? AND number = ? LIMIT 1',
+      'SELECT id, number, notes FROM hymns WHERE hymnal_id = ? AND number = ? LIMIT 1',
       [hymnalId, number]
     );
     if (byNumber) return byNumber;
   }
   const [[byTitle]] = await conn.query(
-    'SELECT id, notes FROM hymns WHERE hymnal_id = ? AND title = ? LIMIT 1',
+    'SELECT id, number, notes FROM hymns WHERE hymnal_id = ? AND title = ? LIMIT 1',
     [hymnalId, title]
   );
   return byTitle || null;
+}
+
+async function nextAvailableHymnNumber(conn, hymnalId) {
+  const [[row]] = await conn.query(
+    'SELECT COALESCE(MAX(number), 0) AS max_number FROM hymns WHERE hymnal_id = ?',
+    [hymnalId]
+  );
+  return Math.max(1, Number(row?.max_number || 0) + 1);
+}
+
+async function resolveTargetNumber(conn, hymnalId, incomingNumber, existingNumber) {
+  if (Number(incomingNumber) > 0) return Number(incomingNumber);
+  if (Number(existingNumber) > 0) return Number(existingNumber);
+  return nextAvailableHymnNumber(conn, hymnalId);
 }
 
 async function upsertHymn(conn, normalizedRow) {
   const nextHash = payloadHash(normalizedRow);
   const hymnalId = await ensureHymnal(conn, normalizedRow.code, normalizedRow.hymnalName);
   const managedNotes = buildManagedNotesFragment(normalizedRow);
+  const incomingNumber = Number(normalizedRow.number) > 0 ? Number(normalizedRow.number) : 0;
 
   const linked = await findLinkedHymn(conn, normalizedRow.externalId);
   if (linked && linked.hymn_id) {
     if (linked.payload_hash && linked.payload_hash === nextHash) {
       return { hymnId: linked.hymn_id, changed: false, created: false };
     }
-    const [[existing]] = await conn.query('SELECT notes FROM hymns WHERE id = ? LIMIT 1', [linked.hymn_id]);
+    const [[existing]] = await conn.query('SELECT number, notes FROM hymns WHERE id = ? LIMIT 1', [linked.hymn_id]);
     const notes = mergeNotes(existing?.notes || '', managedNotes);
+    const number = await resolveTargetNumber(conn, hymnalId, incomingNumber, existing?.number || 0);
     await conn.query(
       `UPDATE hymns
        SET number = ?, title = ?, english_title = ?, hymnal_id = ?, notes = ?
        WHERE id = ?`,
-      [normalizedRow.number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes, linked.hymn_id]
+      [number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes, linked.hymn_id]
     );
     await conn.query(
       `UPDATE external_hymn_links
@@ -208,11 +273,12 @@ async function upsertHymn(conn, normalizedRow) {
   const fallback = await findFallbackHymn(conn, hymnalId, normalizedRow.number, normalizedRow.title);
   if (fallback && fallback.id) {
     const notes = mergeNotes(fallback.notes || '', managedNotes);
+    const number = await resolveTargetNumber(conn, hymnalId, incomingNumber, fallback.number || 0);
     await conn.query(
       `UPDATE hymns
        SET number = ?, title = ?, english_title = ?, hymnal_id = ?, notes = ?
        WHERE id = ?`,
-      [normalizedRow.number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes, fallback.id]
+      [number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes, fallback.id]
     );
     await conn.query(
       `INSERT INTO external_hymn_links (provider, external_id, hymn_id, payload_hash)
@@ -223,10 +289,11 @@ async function upsertHymn(conn, normalizedRow) {
   }
 
   const notes = mergeNotes('', managedNotes);
+  const number = await resolveTargetNumber(conn, hymnalId, incomingNumber, 0);
   const [insert] = await conn.query(
     `INSERT INTO hymns (number, title, english_title, hymnal_id, notes)
      VALUES (?, ?, ?, ?, ?)`,
-    [normalizedRow.number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes]
+    [number, normalizedRow.title, normalizedRow.englishTitle, hymnalId, notes]
   );
   const hymnId = insert.insertId;
   await conn.query(
@@ -237,15 +304,19 @@ async function upsertHymn(conn, normalizedRow) {
   return { hymnId, changed: true, created: true };
 }
 
-function assertSyncToken(providedToken = '') {
+async function assertSyncToken(providedToken = '') {
   const expectedToken = String(config.integrations.promidiaSyncToken || '').trim();
   const sent = String(providedToken || '').trim();
-  if (!expectedToken) {
-    throw new Error('PROMIDIA_SYNC_NOT_CONFIGURED');
-  }
-  if (!sent || !constantTimeEqual(sent, expectedToken)) {
+  if (expectedToken && sent && constantTimeEqual(sent, expectedToken)) return;
+  const managed = await getManagedSyncAuth();
+  if (managed?.tokenHash) {
+    if (!sent) throw new Error('PROMIDIA_SYNC_UNAUTHORIZED');
+    const sentHash = hashSyncToken(sent);
+    if (constantTimeEqual(sentHash, managed.tokenHash)) return;
     throw new Error('PROMIDIA_SYNC_UNAUTHORIZED');
   }
+  if (!expectedToken) throw new Error('PROMIDIA_SYNC_NOT_CONFIGURED');
+  throw new Error('PROMIDIA_SYNC_UNAUTHORIZED');
 }
 
 async function syncFromPromidia(payload = {}) {
@@ -355,4 +426,7 @@ module.exports = {
   assertSyncToken,
   syncFromPromidia,
   listRecentSyncLogs,
+  getSyncAuthStatus,
+  rotateManagedSyncToken,
+  clearManagedSyncToken,
 };

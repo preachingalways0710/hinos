@@ -357,6 +357,29 @@ textarea { resize: vertical; min-height: 80px; }
 .view-all { margin-top: 1rem; font-size: 14px; text-align: right; padding: .75rem 1rem 0; }
 .alert { padding: .75rem 1rem; border-radius: 5px; margin-bottom: 1.25rem; font-size: 14px; }
 .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.alert-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+.sync-inline-copy {
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+}
+.sync-inline-copy input {
+  flex: 1;
+  min-width: 0;
+}
+.sync-token-box {
+  margin-top: .9rem;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  background: #f5f3ff;
+  padding: .8rem;
+}
+.sync-token-title {
+  font-weight: 700;
+  color: #4c1d95;
+  margin-bottom: .45rem;
+}
 
 /* ─── Planning Center ─────────────────────────────────────────────────────── */
 .pc-status-row {
