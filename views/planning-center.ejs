@@ -173,6 +173,10 @@
                 <option value="" disabled>Nenhuma playlist sincronizada disponível</option>
               <% } %>
             </select>
+            <div class="form-actions" style="margin-top:.5rem">
+              <button id="pc-sync-site-btn" class="btn btn-secondary" type="button">Sync Site Agora</button>
+            </div>
+            <div id="pc-sync-site-msg" class="form-hint"></div>
           </div>
         </div>
 
@@ -248,6 +252,8 @@
     const previewBtn = document.getElementById('pc-preview-btn');
     const importBtn = document.getElementById('pc-import-btn');
     const tableBody = document.querySelector('#pc-preview-table tbody');
+    const syncSiteBtnEl = document.getElementById('pc-sync-site-btn');
+    const syncSiteMsgEl = document.getElementById('pc-sync-site-msg');
 
     function setMessage(msg) {
       if (!messageEl) return;
@@ -310,6 +316,22 @@
         body: JSON.stringify(payload || {}),
       });
       return res.json();
+    }
+
+    function setSyncSiteMsg(msg) {
+      if (!syncSiteMsgEl) return;
+      syncSiteMsgEl.textContent = msg || '';
+    }
+
+    function trySelectLocalPlaylistByName(name) {
+      if (!localPlaylistEl || !name) return false;
+      const target = String(name || '').trim().toLowerCase();
+      if (!target) return false;
+      const options = Array.from(localPlaylistEl.options || []);
+      const match = options.find(opt => String(opt.value || '').trim().toLowerCase() === target);
+      if (!match) return false;
+      localPlaylistEl.value = match.value;
+      return true;
     }
 
     async function loadServiceTypes() {
@@ -426,16 +448,29 @@
         }
       })();
     }
+
+    if (syncSiteBtnEl) {
+      syncSiteBtnEl.addEventListener('click', async () => {
+        try {
+          syncSiteBtnEl.disabled = true;
+          setSyncSiteMsg('Sincronizando dados do último pacote recebido...');
+          const response = await postJson('/api/integrations/promidia/replay-last', {});
+          if (!response.ok) {
+            const code = String(response.error || 'PROMIDIA_SYNC_MANUAL_FAILED');
+            if (code === 'PROMIDIA_SYNC_NO_LAST_PAYLOAD') {
+              throw new Error('Nenhum pacote recebido ainda. Rode Sync no app Promidia primeiro.');
+            }
+            throw new Error(code);
+          }
+          setSyncSiteMsg('Sync concluído. Atualizando página...');
+          setTimeout(() => { window.location.reload(); }, 450);
+        } catch (err) {
+          setSyncSiteMsg(err.message || 'Falha no sync manual.');
+        } finally {
+          syncSiteBtnEl.disabled = false;
+        }
+      });
+    }
   </script>
 </body>
 </html>
-    function trySelectLocalPlaylistByName(name) {
-      if (!localPlaylistEl || !name) return false;
-      const target = String(name || '').trim().toLowerCase();
-      if (!target) return false;
-      const options = Array.from(localPlaylistEl.options || []);
-      const match = options.find(opt => String(opt.value || '').trim().toLowerCase() === target);
-      if (!match) return false;
-      localPlaylistEl.value = match.value;
-      return true;
-    }

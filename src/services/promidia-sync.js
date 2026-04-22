@@ -9,6 +9,7 @@ const { constantTimeEqual } = require('../utils/security');
 
 const PROVIDER = 'promidia';
 const MANAGED_SYNC_TOKEN_KEY = 'promidia_sync_auth';
+const LAST_SYNC_PAYLOAD_KEY = 'promidia_last_sync_payload';
 
 const THEME_RULES = [
   { theme: 'Adoração', patterns: ['adora', 'worship', 'louvor', 'praise', 'gloria', 'glória'] },
@@ -129,6 +130,43 @@ function payloadHash(row = {}) {
 
 function hashSyncToken(value = '') {
   return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+function sanitizeIncomingPayload(payload = {}) {
+  return {
+    source: normalizeShortText(payload?.source || '', 40) || 'promidia',
+    sourceVersion: normalizeShortText(payload?.sourceVersion || '', 80),
+    exportedAt: normalizeShortText(payload?.exportedAt || '', 80),
+    hymns: Array.isArray(payload?.hymns) ? payload.hymns : [],
+    playlists: Array.isArray(payload?.playlists) ? payload.playlists : [],
+  };
+}
+
+async function saveLatestSyncPayload(payload = {}) {
+  const safePayload = sanitizeIncomingPayload(payload);
+  const savedAt = new Date().toISOString();
+  await setSetting(LAST_SYNC_PAYLOAD_KEY, {
+    savedAt,
+    payload: safePayload,
+  });
+  return {
+    savedAt,
+    hymnCount: safePayload.hymns.length,
+    playlistCount: safePayload.playlists.length,
+  };
+}
+
+async function getLatestSyncPayloadInfo() {
+  const stored = await getSetting(LAST_SYNC_PAYLOAD_KEY);
+  if (!stored || typeof stored !== 'object') return null;
+  const payload = sanitizeIncomingPayload(stored.payload || {});
+  const savedAt = normalizeShortText(stored.savedAt || '', 80);
+  return {
+    savedAt: savedAt || null,
+    hymnCount: payload.hymns.length,
+    playlistCount: payload.playlists.length,
+    payload,
+  };
 }
 
 async function getManagedSyncAuth() {
@@ -401,11 +439,12 @@ async function assertSyncToken(providedToken = '') {
 }
 
 async function syncFromPromidia(payload = {}) {
-  const inputRows = Array.isArray(payload.hymns) ? payload.hymns : [];
+  const safePayload = sanitizeIncomingPayload(payload);
+  const inputRows = safePayload.hymns;
   const normalized = inputRows
     .map(normalizeIncomingHymn)
     .filter(Boolean);
-  const inputPlaylists = Array.isArray(payload.playlists) ? payload.playlists : [];
+  const inputPlaylists = safePayload.playlists;
   const normalizedPlaylists = inputPlaylists
     .map((row, idx) => normalizeIncomingPlaylist(row, idx))
     .filter(Boolean);
@@ -444,6 +483,7 @@ async function syncFromPromidia(payload = {}) {
       }
     }
     await conn.commit();
+    await saveLatestSyncPayload(safePayload).catch(() => {});
     summary = {
       received: inputRows.length,
       processed: normalized.length,
@@ -463,8 +503,8 @@ async function syncFromPromidia(payload = {}) {
       status: 'success',
       ...summary,
       details: {
-        sourceVersion: payload?.sourceVersion || '',
-        exportedAt: payload?.exportedAt || '',
+        sourceVersion: safePayload.sourceVersion || '',
+        exportedAt: safePayload.exportedAt || '',
         playlists: {
           received: summary.playlistsReceived,
           processed: summary.playlistsProcessed,
@@ -489,8 +529,8 @@ async function syncFromPromidia(payload = {}) {
       themedLinks: summary?.themedLinks || 0,
       errorCode: String(err?.message || err || 'SYNC_FAILED'),
       details: {
-        sourceVersion: payload?.sourceVersion || '',
-        exportedAt: payload?.exportedAt || '',
+        sourceVersion: safePayload.sourceVersion || '',
+        exportedAt: safePayload.exportedAt || '',
         playlists: {
           received: inputPlaylists.length,
           processed: normalizedPlaylists.length,
@@ -505,6 +545,18 @@ async function syncFromPromidia(payload = {}) {
   } finally {
     conn.release();
   }
+}
+
+async function replayLastPromidiaSync() {
+  const info = await getLatestSyncPayloadInfo();
+  if (!info || !info.payload) throw new Error('PROMIDIA_SYNC_NO_LAST_PAYLOAD');
+  const result = await syncFromPromidia(info.payload);
+  return {
+    result,
+    savedAt: info.savedAt || null,
+    hymnCount: info.hymnCount || 0,
+    playlistCount: info.playlistCount || 0,
+  };
 }
 
 async function listRecentSyncLogs(limit = 40) {
@@ -549,4 +601,6 @@ module.exports = {
   getSyncAuthStatus,
   rotateManagedSyncToken,
   clearManagedSyncToken,
+  replayLastPromidiaSync,
+  getLatestSyncPayloadInfo,
 };
