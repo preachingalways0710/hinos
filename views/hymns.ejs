@@ -95,7 +95,7 @@
               <th>Título</th>
               <th>Temas</th>
               <th style="width:110px">Último Uso</th>
-              <th style="width:100px"></th>
+              <th style="width:170px"></th>
             </tr>
           </thead>
           <tbody>
@@ -118,6 +118,13 @@
                   <% } %>
                 </td>
                 <td class="td-actions">
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm js-add-to-culto"
+                    data-hymn-id="<%= h.id %>"
+                    data-hymn-title="<%= h.hymnal %> <%= h.number %> — <%= h.title %>">
+                    + Culto
+                  </button>
                   <a href="/hinos/<%= h.id %>/editar" class="btn btn-secondary btn-sm">Editar</a>
                   <button class="btn btn-danger btn-sm" onclick="deleteHymn(<%= h.id %>, this)">×</button>
                 </td>
@@ -139,8 +146,53 @@
     <% } %>
   </div>
 
+  <div id="add-to-culto-modal" class="simple-modal-backdrop" style="display:none">
+    <div class="simple-modal">
+      <div class="simple-modal-title">Adicionar hino ao culto</div>
+      <p id="add-to-culto-selected" class="simple-modal-sub"></p>
+
+      <div class="form-group">
+        <label for="add-to-culto-target">Playlist/Culto de destino</label>
+        <select id="add-to-culto-target">
+          <option value="">Escolha um culto</option>
+          <option value="__new__">+ Criar novo culto</option>
+          <% (cultoOptions || []).forEach(function(svc) { %>
+            <option value="<%= svc.id %>">
+              <%= svc.service_date %> — <%= SERVICE_LABELS[svc.service_type] || svc.service_type %> (<%= svc.hymn_count || 0 %>/5)<%= svc.notes ? (' — ' + svc.notes) : '' %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div id="add-to-culto-new-fields" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="add-to-culto-date">Data</label>
+            <input id="add-to-culto-date" type="date" value="<%= nextSunday || '' %>">
+          </div>
+          <div class="form-group">
+            <label for="add-to-culto-type">Tipo</label>
+            <select id="add-to-culto-type">
+              <option value="dom_manha">Domingo Manhã</option>
+              <option value="dom_noite">Domingo Noite</option>
+              <option value="qua">Quarta-Feira</option>
+              <option value="especial">Culto Especial</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="add-to-culto-submit" class="btn btn-primary">Adicionar</button>
+        <button type="button" id="add-to-culto-cancel" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    let pendingAddHymnId = 0;
+    let pendingAddHymnLabel = '';
 
     async function deleteHymn(id, btn) {
       if (!confirm('Excluir este hino? Esta ação não pode ser desfeita.')) return;
@@ -156,6 +208,91 @@
         btn.disabled = false;
       }
     }
+
+    function openAddToCultoModal(hymnId, hymnLabel) {
+      pendingAddHymnId = Number(hymnId) || 0;
+      pendingAddHymnLabel = String(hymnLabel || '');
+      document.getElementById('add-to-culto-selected').textContent = pendingAddHymnLabel;
+      document.getElementById('add-to-culto-target').value = '';
+      document.getElementById('add-to-culto-new-fields').style.display = 'none';
+      document.getElementById('add-to-culto-modal').style.display = 'flex';
+    }
+
+    function closeAddToCultoModal() {
+      document.getElementById('add-to-culto-modal').style.display = 'none';
+      pendingAddHymnId = 0;
+      pendingAddHymnLabel = '';
+    }
+
+    async function submitAddToCulto() {
+      if (!pendingAddHymnId) return;
+      const target = String(document.getElementById('add-to-culto-target').value || '').trim();
+      if (!target) {
+        alert('Escolha um culto de destino.');
+        return;
+      }
+
+      const payload = {};
+      if (target === '__new__') {
+        const date = String(document.getElementById('add-to-culto-date').value || '').trim();
+        const type = String(document.getElementById('add-to-culto-type').value || '').trim();
+        if (!date || !type) {
+          alert('Preencha data e tipo para criar o culto.');
+          return;
+        }
+        payload.serviceDate = date;
+        payload.serviceType = type;
+      } else {
+        payload.serviceId = target;
+      }
+
+      const res = await fetch('/api/hinos/' + pendingAddHymnId + '/add-to-culto', {
+        method: 'POST',
+        headers: {
+          'x-csrf-token': csrfToken,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.success) {
+        const code = String(body.error || 'UNKNOWN_ERROR');
+        if (code === 'SERVICE_FULL') {
+          alert('Esse culto já tem 5 hinos. Escolha outro ou edite o culto.');
+          return;
+        }
+        alert('Não foi possível adicionar. Erro: ' + code);
+        return;
+      }
+
+      if (body.status === 'already') {
+        alert('Esse hino já está nesse culto.');
+      } else {
+        const slot = body.position ? (' (slot ' + body.position + ')') : '';
+        alert('Hino adicionado com sucesso' + slot + '.');
+      }
+      closeAddToCultoModal();
+    }
+
+    document.querySelectorAll('.js-add-to-culto').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openAddToCultoModal(btn.dataset.hymnId, btn.dataset.hymnTitle);
+      });
+    });
+
+    document.getElementById('add-to-culto-target').addEventListener('change', function() {
+      const show = this.value === '__new__';
+      document.getElementById('add-to-culto-new-fields').style.display = show ? '' : 'none';
+    });
+    document.getElementById('add-to-culto-submit').addEventListener('click', function() {
+      submitAddToCulto().catch(function() {
+        alert('Erro inesperado ao adicionar hino ao culto.');
+      });
+    });
+    document.getElementById('add-to-culto-cancel').addEventListener('click', closeAddToCultoModal);
+    document.getElementById('add-to-culto-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeAddToCultoModal();
+    });
   </script>
 </body>
 </html>

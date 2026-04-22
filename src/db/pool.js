@@ -52,6 +52,22 @@ async function ensureAppTables() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS promidia_playlists (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      provider VARCHAR(40) NOT NULL DEFAULT 'promidia',
+      external_playlist_id VARCHAR(120) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      item_count INT NOT NULL DEFAULT 0,
+      payload_hash CHAR(64) DEFAULT NULL,
+      payload_json LONGTEXT DEFAULT NULL,
+      last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_promidia_playlists_provider_external (provider, external_playlist_id),
+      KEY idx_promidia_playlists_updated (updated_at)
+    )
+  `);
 }
 
 module.exports = {

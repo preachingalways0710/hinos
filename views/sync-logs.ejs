@@ -123,7 +123,10 @@
                   <% if (row.status === 'error') { %>
                     <span class="never-used"><%= row.errorCode || 'sync_failed' %></span>
                   <% } else { %>
-                    <span class="muted"><%= row.details && row.details.sourceVersion ? ('Promidia ' + row.details.sourceVersion) : '—' %></span>
+                    <span class="muted"><%= row.details && row.details.sourceVersion ? ('Promidia ' + row.details.sourceVersion) : 'Promidia' %></span>
+                    <% if (row.details && row.details.playlists) { %>
+                      <div class="form-hint">Playlists: <%= row.details.playlists.processed || 0 %> proc, <%= row.details.playlists.created || 0 %> novas, <%= row.details.playlists.updated || 0 %> atualizadas</div>
+                    <% } %>
                   <% } %>
                 </td>
               </tr>

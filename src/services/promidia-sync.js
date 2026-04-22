@@ -67,6 +67,47 @@ function normalizeIncomingHymn(row = {}) {
   };
 }
 
+function normalizeIncomingPlaylistItem(row = {}, sequence = 0) {
+  const safeSequence = Number.isFinite(Number(sequence)) ? Number(sequence) : 0;
+  const rawKind = normalizeShortText(row.kind || row.type || '', 20).toLowerCase();
+  if (rawKind === 'header') {
+    const text = normalizeShortText(row.text || row.header || row.title || '', 255);
+    if (!text) return null;
+    return {
+      kind: 'header',
+      sequence: safeSequence,
+      text,
+    };
+  }
+  const hymnId = normalizeShortText(row.hymnId || row.id || row.externalId || '', 80);
+  if (!hymnId) return null;
+  return {
+    kind: 'hymn',
+    sequence: safeSequence,
+    hymnId,
+    title: normalizeShortText(row.title || '', 255),
+    code: normalizeShortText(row.code || '', 20).toUpperCase(),
+    number: Math.max(0, toInt(row.number, 0)),
+  };
+}
+
+function normalizeIncomingPlaylist(row = {}, fallbackIndex = 0) {
+  const externalId = normalizeShortText(row.id || row.playlistId || row.externalId || '', 120);
+  const fallbackName = `Playlist ${Math.max(1, Number(fallbackIndex) + 1)}`;
+  const name = normalizeShortText(row.name || row.title || fallbackName, 255);
+  if (!externalId || !name) return null;
+  const inputItems = Array.isArray(row.items) ? row.items : [];
+  const items = inputItems
+    .map((item, idx) => normalizeIncomingPlaylistItem(item, idx))
+    .filter(Boolean);
+  return {
+    externalId,
+    name,
+    sequence: Math.max(0, toInt(row.sequence, fallbackIndex)),
+    items,
+  };
+}
+
 function buildManagedNotesFragment(row = {}) {
   const parts = [];
   if (row.sourceLibrary) parts.push(`Biblioteca Promidia: ${row.sourceLibrary}`);
@@ -304,6 +345,46 @@ async function upsertHymn(conn, normalizedRow) {
   return { hymnId, changed: true, created: true };
 }
 
+async function findLinkedPlaylist(conn, externalId) {
+  const [[row]] = await conn.query(
+    'SELECT id, payload_hash FROM promidia_playlists WHERE provider = ? AND external_playlist_id = ? LIMIT 1',
+    [PROVIDER, externalId]
+  );
+  return row || null;
+}
+
+async function upsertPlaylist(conn, normalizedRow) {
+  const payload = {
+    externalId: normalizedRow.externalId,
+    name: normalizedRow.name,
+    sequence: normalizedRow.sequence,
+    items: normalizedRow.items,
+  };
+  const nextHash = payloadHash(payload);
+  const payloadJson = JSON.stringify(payload);
+  const itemCount = normalizedRow.items.length;
+  const linked = await findLinkedPlaylist(conn, normalizedRow.externalId);
+  if (linked && linked.id) {
+    if (linked.payload_hash && linked.payload_hash === nextHash) {
+      return { changed: false, created: false };
+    }
+    await conn.query(
+      `UPDATE promidia_playlists
+       SET name = ?, item_count = ?, payload_hash = ?, payload_json = ?, last_synced_at = CURRENT_TIMESTAMP
+       WHERE provider = ? AND external_playlist_id = ?`,
+      [normalizedRow.name, itemCount, nextHash, payloadJson, PROVIDER, normalizedRow.externalId]
+    );
+    return { changed: true, created: false };
+  }
+  await conn.query(
+    `INSERT INTO promidia_playlists
+     (provider, external_playlist_id, name, item_count, payload_hash, payload_json, last_synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [PROVIDER, normalizedRow.externalId, normalizedRow.name, itemCount, nextHash, payloadJson]
+  );
+  return { changed: true, created: true };
+}
+
 async function assertSyncToken(providedToken = '') {
   const expectedToken = String(config.integrations.promidiaSyncToken || '').trim();
   const sent = String(providedToken || '').trim();
@@ -324,6 +405,10 @@ async function syncFromPromidia(payload = {}) {
   const normalized = inputRows
     .map(normalizeIncomingHymn)
     .filter(Boolean);
+  const inputPlaylists = Array.isArray(payload.playlists) ? payload.playlists : [];
+  const normalizedPlaylists = inputPlaylists
+    .map((row, idx) => normalizeIncomingPlaylist(row, idx))
+    .filter(Boolean);
 
   const conn = await db.getConnection();
   let summary = null;
@@ -334,6 +419,9 @@ async function syncFromPromidia(payload = {}) {
     let updated = 0;
     let unchanged = 0;
     let themedLinks = 0;
+    let playlistsCreated = 0;
+    let playlistsUpdated = 0;
+    let playlistsUnchanged = 0;
     for (const row of normalized) {
       const result = await upsertHymn(conn, row);
       themedLinks += await applyInferredThemes(conn, result.hymnId, row, themeLookup);
@@ -345,6 +433,16 @@ async function syncFromPromidia(payload = {}) {
         updated += 1;
       }
     }
+    for (const playlistRow of normalizedPlaylists) {
+      const result = await upsertPlaylist(conn, playlistRow);
+      if (!result.changed) {
+        playlistsUnchanged += 1;
+      } else if (result.created) {
+        playlistsCreated += 1;
+      } else {
+        playlistsUpdated += 1;
+      }
+    }
     await conn.commit();
     summary = {
       received: inputRows.length,
@@ -354,6 +452,12 @@ async function syncFromPromidia(payload = {}) {
       unchanged,
       dropped: Math.max(0, inputRows.length - normalized.length),
       themedLinks,
+      playlistsReceived: inputPlaylists.length,
+      playlistsProcessed: normalizedPlaylists.length,
+      playlistsCreated,
+      playlistsUpdated,
+      playlistsUnchanged,
+      playlistsDropped: Math.max(0, inputPlaylists.length - normalizedPlaylists.length),
     };
     await writeSyncLog({
       status: 'success',
@@ -361,6 +465,14 @@ async function syncFromPromidia(payload = {}) {
       details: {
         sourceVersion: payload?.sourceVersion || '',
         exportedAt: payload?.exportedAt || '',
+        playlists: {
+          received: summary.playlistsReceived,
+          processed: summary.playlistsProcessed,
+          created: summary.playlistsCreated,
+          updated: summary.playlistsUpdated,
+          unchanged: summary.playlistsUnchanged,
+          dropped: summary.playlistsDropped,
+        },
       },
     });
     return summary;
@@ -379,6 +491,14 @@ async function syncFromPromidia(payload = {}) {
       details: {
         sourceVersion: payload?.sourceVersion || '',
         exportedAt: payload?.exportedAt || '',
+        playlists: {
+          received: inputPlaylists.length,
+          processed: normalizedPlaylists.length,
+          created: summary?.playlistsCreated || 0,
+          updated: summary?.playlistsUpdated || 0,
+          unchanged: summary?.playlistsUnchanged || 0,
+          dropped: Math.max(0, inputPlaylists.length - normalizedPlaylists.length),
+        },
       },
     }).catch(() => {});
     throw err;

@@ -23,7 +23,7 @@
     </form>
   </nav>
 
-  <div class="container">
+  <div class="container planner-page">
     <% const isEditMode = !!(service && service.id); %>
     <% const seed = formSeed || {}; %>
     <% const currentDate = isEditMode ? service.service_date : (seed.service_date || ''); %>
@@ -42,7 +42,7 @@
       <form method="POST" action="<%= isEditMode ? '/cultos/' + service.id + '/atualizar' : '/cultos' %>">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (!isEditMode) { %>
-          <input type="hidden" name="base_service_id" id="base_service_id" value="<%= sourceServiceId || 0 %>">
+          <input type="hidden" name="base_template" id="base_template" value="<%= sourceTemplateKey || '' %>">
         <% } %>
 
         <% if (!isEditMode) { %>
@@ -50,59 +50,103 @@
             <label for="base-template-select">Basear em plano existente <span class="label-optional">(opcional)</span></label>
             <select id="base-template-select">
               <option value="">Começar do zero</option>
-              <% (templateServices || []).forEach(function(t) { %>
-                <option value="<%= t.id %>" <%= Number(sourceServiceId || 0) === Number(t.id) ? 'selected' : '' %>>
-                  <%= t.service_date %> — <%= SERVICE_LABELS[t.service_type] || t.service_type %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
-                </option>
-              <% }); %>
+              <% if ((templateServices || []).length) { %>
+                <optgroup label="Cultos existentes">
+                  <% (templateServices || []).forEach(function(t) { %>
+                    <% var key = 'local:' + t.id; %>
+                    <option value="<%= key %>" <%= (sourceTemplateKey || '') === key ? 'selected' : '' %>>
+                      <%= t.service_date %> — <%= SERVICE_LABELS[t.service_type] || t.service_type %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
+                    </option>
+                  <% }); %>
+                </optgroup>
+              <% } %>
+              <% if ((templatePromidiaPlaylists || []).length) { %>
+                <optgroup label="Playlists sincronizadas (Promidia)">
+                  <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
+                    <% var key = 'promidia:' + t.external_playlist_id; %>
+                    <option value="<%= key %>" <%= (sourceTemplateKey || '') === key ? 'selected' : '' %>>
+                      <%= t.name %> (<%= t.item_count || 0 %> itens)<%= t.updated_at ? (' — sync ' + t.updated_at) : '' %>
+                    </option>
+                  <% }); %>
+                </optgroup>
+              <% } %>
             </select>
             <p class="form-hint">Escolha um plano para copiar os hinos e o tipo de culto, depois ajuste a data.</p>
           </div>
         <% } %>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="service_date">Data</label>
-            <input type="date" id="service_date" name="service_date"
-              value="<%= currentDate %>" required>
-          </div>
-          <div class="form-group">
-            <label for="service_type">Tipo de Culto</label>
-            <select id="service_type" name="service_type" required>
-              <% var types = ['dom_manha','dom_noite','qua','especial']; %>
-              <% types.forEach(function(t) { %>
-                <option value="<%= t %>" <%= currentType === t ? 'selected' : '' %>>
-                  <%= SERVICE_LABELS[t] %>
-                </option>
-              <% }); %>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="notes">Observações <span class="label-optional">(opcional)</span></label>
-          <input type="text" id="notes" name="notes"
-            value="<%= currentNotes %>"
-            placeholder="ex: Culto de missões, visitantes especiais...">
-        </div>
-
-        <div class="form-group">
-          <label>Hinos <span class="label-optional">(até 5)</span></label>
-          <div class="slots">
-            <% [1,2,3,4,5].forEach(function(n) { %>
-              <div class="slot">
-                <div class="slot-num"><%= n %></div>
-                <div class="slot-body">
-                  <input type="text" id="search-<%= n %>" placeholder="Buscar por título ou número..." autocomplete="off">
-                  <ul class="hymn-dropdown" id="dropdown-<%= n %>"></ul>
-                  <span class="slot-selected" id="selected-<%= n %>" style="display:none"></span>
-                </div>
-                <button type="button" class="slot-clear" id="clear-<%= n %>" style="display:none" title="Remover">×</button>
-                <input type="hidden" name="hymn_ids" id="hymn-id-<%= n %>" value="">
+        <div class="planner-grid">
+          <div class="planner-main">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="service_date">Data</label>
+                <input type="date" id="service_date" name="service_date"
+                  value="<%= currentDate %>" required>
               </div>
-            <% }); %>
+              <div class="form-group">
+                <label for="service_type">Tipo de Culto</label>
+                <select id="service_type" name="service_type" required>
+                  <% var types = ['dom_manha','dom_noite','qua','especial']; %>
+                  <% types.forEach(function(t) { %>
+                    <option value="<%= t %>" <%= currentType === t ? 'selected' : '' %>>
+                      <%= SERVICE_LABELS[t] %>
+                    </option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="notes">Observações <span class="label-optional">(opcional)</span></label>
+              <input type="text" id="notes" name="notes"
+                value="<%= currentNotes %>"
+                placeholder="ex: Culto de missões, visitantes especiais...">
+            </div>
+
+            <div class="form-group">
+              <label>Hinos <span class="label-optional">(até 5)</span></label>
+              <div class="slots">
+                <% [1,2,3,4,5].forEach(function(n) { %>
+                  <div class="slot" data-slot="<%= n %>">
+                    <div class="slot-num"><%= n %></div>
+                    <div class="slot-body">
+                      <input type="text" id="search-<%= n %>" placeholder="Buscar por título ou número..." autocomplete="off">
+                      <ul class="hymn-dropdown" id="dropdown-<%= n %>"></ul>
+                      <span class="slot-selected" id="selected-<%= n %>" style="display:none"></span>
+                    </div>
+                    <button type="button" class="slot-clear" id="clear-<%= n %>" style="display:none" title="Remover">×</button>
+                    <input type="hidden" name="hymn_ids" id="hymn-id-<%= n %>" value="">
+                  </div>
+                <% }); %>
+              </div>
+              <p class="form-hint">Clique em um slot para selecionar destino. Você também pode usar o navegador de hinos ao lado.</p>
+            </div>
           </div>
-          <p class="form-hint">Digite pelo menos 2 caracteres para buscar. Deixe slots vazios se precisar de menos de 5 hinos.</p>
+
+          <aside class="planner-browser">
+            <div class="planner-browser-header">
+              <h2>Navegar Hinos</h2>
+              <span id="planner-browser-count" class="count-badge">0</span>
+            </div>
+            <div class="planner-browser-filters">
+              <input type="search" id="planner-browser-q" placeholder="Buscar título, número, tema...">
+              <div class="planner-browser-row">
+                <select id="planner-browser-hymnal">
+                  <option value="">Todos os hinários</option>
+                  <% (hymnals || []).forEach(function(hy) { %>
+                    <option value="<%= hy.code %>"><%= hy.code %> — <%= hy.name %></option>
+                  <% }); %>
+                </select>
+                <select id="planner-browser-theme">
+                  <option value="">Todos os temas</option>
+                  <% (themes || []).forEach(function(t) { %>
+                    <option value="<%= t.id %>"><%= t.name %></option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+            <div id="planner-browser-results" class="planner-browser-results"></div>
+          </aside>
         </div>
 
         <div class="form-actions">
@@ -116,16 +160,23 @@
 
   <script>
     var timers = {};
+    var browserTimer = null;
+    var activeSlot = 1;
 
     function initSlot(n, initial) {
       var searchEl   = document.getElementById('search-'   + n);
-      var hiddenEl   = document.getElementById('hymn-id-'  + n);
       var dropEl     = document.getElementById('dropdown-' + n);
-      var selectedEl = document.getElementById('selected-' + n);
       var clearEl    = document.getElementById('clear-'    + n);
+      var slotEl = document.querySelector('.slot[data-slot="' + n + '"]');
 
       if (initial && initial.id) {
         selectHymn(n, initial);
+      }
+
+      if (slotEl) {
+        slotEl.addEventListener('click', function() {
+          setActiveSlot(n);
+        });
       }
 
       searchEl.addEventListener('input', function() {
@@ -144,6 +195,7 @@
                 li.addEventListener('mousedown', function(e) {
                   e.preventDefault();
                   selectHymn(n, h);
+                  setActiveSlot(n);
                 });
                 dropEl.appendChild(li);
               });
@@ -155,10 +207,30 @@
       searchEl.addEventListener('blur', function() {
         setTimeout(function() { dropEl.style.display = 'none'; }, 150);
       });
+      searchEl.addEventListener('focus', function() {
+        setActiveSlot(n);
+      });
 
-      clearEl.addEventListener('click', function() {
+      clearEl.addEventListener('click', function(e) {
+        e.stopPropagation();
         clearSlot(n);
       });
+    }
+
+    function setActiveSlot(n) {
+      activeSlot = n;
+      document.querySelectorAll('.slot').forEach(function(el) {
+        el.classList.remove('active');
+      });
+      var slotEl = document.querySelector('.slot[data-slot="' + n + '"]');
+      if (slotEl) slotEl.classList.add('active');
+    }
+
+    function findNextEmptySlot() {
+      for (var n = 1; n <= 5; n += 1) {
+        if (!document.getElementById('hymn-id-' + n).value) return n;
+      }
+      return 0;
     }
 
     function selectHymn(n, h) {
@@ -181,22 +253,104 @@
       document.getElementById('search-'   + n).focus();
     }
 
+    function renderBrowserRows(rows) {
+      var wrap = document.getElementById('planner-browser-results');
+      var count = document.getElementById('planner-browser-count');
+      if (!wrap || !count) return;
+      var list = Array.isArray(rows) ? rows : [];
+      count.textContent = String(list.length);
+      if (!list.length) {
+        wrap.innerHTML = '<div class="empty-hint">Nenhum hino encontrado.</div>';
+        return;
+      }
+      wrap.innerHTML = '';
+      list.forEach(function(h) {
+        var row = document.createElement('div');
+        row.className = 'planner-hymn-row';
+        var subtitle = h.themes ? ('<div class="planner-hymn-sub">' + h.themes + '</div>') : '';
+        row.innerHTML = ''
+          + '<div class="planner-hymn-main">'
+          + '<div class="planner-hymn-title">' + h.hymnal + ' ' + h.number + ' \u2014 ' + h.title + '</div>'
+          + subtitle
+          + '</div>'
+          + '<button type="button" class="btn btn-primary btn-sm planner-add-btn">Adicionar</button>';
+        row.querySelector('.planner-add-btn').addEventListener('click', function() {
+          addHymnFromBrowser(h);
+        });
+        wrap.appendChild(row);
+      });
+    }
+
+    function addHymnFromBrowser(h) {
+      var target = activeSlot;
+      if (document.getElementById('hymn-id-' + target).value) {
+        var nextEmpty = findNextEmptySlot();
+        if (nextEmpty) target = nextEmpty;
+      }
+      if (!target) {
+        alert('Os 5 slots já estão preenchidos. Remova um para adicionar outro hino.');
+        return;
+      }
+      selectHymn(target, h);
+      setActiveSlot(target);
+      var next = findNextEmptySlot();
+      if (next) setActiveSlot(next);
+    }
+
+    async function runBrowserSearch() {
+      var qEl = document.getElementById('planner-browser-q');
+      var hymnalEl = document.getElementById('planner-browser-hymnal');
+      var themeEl = document.getElementById('planner-browser-theme');
+      if (!qEl || !hymnalEl || !themeEl) return;
+      var params = new URLSearchParams();
+      var q = String(qEl.value || '').trim();
+      var hymnal = String(hymnalEl.value || '').trim();
+      var theme = String(themeEl.value || '').trim();
+      if (q) params.set('q', q);
+      if (hymnal) params.set('hymnal', hymnal);
+      if (theme) params.set('theme', theme);
+      params.set('limit', '120');
+      var res = await fetch('/api/hinos/browser?' + params.toString());
+      var rows = await res.json();
+      renderBrowserRows(rows);
+    }
+
+    function queueBrowserSearch() {
+      clearTimeout(browserTimer);
+      browserTimer = setTimeout(function() {
+        runBrowserSearch().catch(function() {});
+      }, 220);
+    }
+
     var initialSlots = <%- JSON.stringify(slots) %>;
     [1,2,3,4,5].forEach(function(n) {
       initSlot(n, initialSlots[n - 1]);
     });
+    setActiveSlot(findNextEmptySlot() || 1);
 
     var baseTemplateSelect = document.getElementById('base-template-select');
     if (baseTemplateSelect) {
       baseTemplateSelect.addEventListener('change', function() {
         var selected = String(baseTemplateSelect.value || '').trim();
+        var dateInput = document.getElementById('service_date');
+        var date = dateInput ? String(dateInput.value || '').trim() : '';
         if (!selected) {
-          window.location.href = '/cultos/novo';
+          window.location.href = date ? ('/cultos/novo?date=' + encodeURIComponent(date)) : '/cultos/novo';
           return;
         }
-        window.location.href = '/cultos/novo?base=' + encodeURIComponent(selected);
+        var url = '/cultos/novo?base=' + encodeURIComponent(selected);
+        if (date) url += '&date=' + encodeURIComponent(date);
+        window.location.href = url;
       });
     }
+
+    var browserQEl = document.getElementById('planner-browser-q');
+    var browserHymnalEl = document.getElementById('planner-browser-hymnal');
+    var browserThemeEl = document.getElementById('planner-browser-theme');
+    if (browserQEl) browserQEl.addEventListener('input', queueBrowserSearch);
+    if (browserHymnalEl) browserHymnalEl.addEventListener('change', queueBrowserSearch);
+    if (browserThemeEl) browserThemeEl.addEventListener('change', queueBrowserSearch);
+    runBrowserSearch().catch(function() {});
   </script>
 </body>
 </html>
