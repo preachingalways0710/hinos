@@ -24,6 +24,11 @@
   </nav>
 
   <div class="container">
+    <% const isEditMode = !!(service && service.id); %>
+    <% const seed = formSeed || {}; %>
+    <% const currentDate = isEditMode ? service.service_date : (seed.service_date || ''); %>
+    <% const currentType = isEditMode ? service.service_type : (seed.service_type || 'dom_manha'); %>
+    <% const currentNotes = isEditMode ? (service.notes || '') : (seed.notes || ''); %>
     <div class="page-header">
       <h1><%= service ? 'Editar Culto' : 'Planejar Culto' %></h1>
       <a href="/cultos" class="btn btn-secondary">← Voltar</a>
@@ -34,21 +39,39 @@
         <div class="alert alert-error"><%= error %></div>
       <% } %>
 
-      <form method="POST" action="<%= service ? '/cultos/' + service.id + '/atualizar' : '/cultos' %>">
+      <form method="POST" action="<%= isEditMode ? '/cultos/' + service.id + '/atualizar' : '/cultos' %>">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <% if (!isEditMode) { %>
+          <input type="hidden" name="base_service_id" id="base_service_id" value="<%= sourceServiceId || 0 %>">
+        <% } %>
+
+        <% if (!isEditMode) { %>
+          <div class="form-group">
+            <label for="base-template-select">Basear em plano existente <span class="label-optional">(opcional)</span></label>
+            <select id="base-template-select">
+              <option value="">Começar do zero</option>
+              <% (templateServices || []).forEach(function(t) { %>
+                <option value="<%= t.id %>" <%= Number(sourceServiceId || 0) === Number(t.id) ? 'selected' : '' %>>
+                  <%= t.service_date %> — <%= SERVICE_LABELS[t.service_type] || t.service_type %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
+                </option>
+              <% }); %>
+            </select>
+            <p class="form-hint">Escolha um plano para copiar os hinos e o tipo de culto, depois ajuste a data.</p>
+          </div>
+        <% } %>
 
         <div class="form-row">
           <div class="form-group">
             <label for="service_date">Data</label>
             <input type="date" id="service_date" name="service_date"
-              value="<%= service ? service.service_date : '' %>" required>
+              value="<%= currentDate %>" required>
           </div>
           <div class="form-group">
             <label for="service_type">Tipo de Culto</label>
             <select id="service_type" name="service_type" required>
               <% var types = ['dom_manha','dom_noite','qua','especial']; %>
               <% types.forEach(function(t) { %>
-                <option value="<%= t %>" <%= service && service.service_type === t ? 'selected' : '' %>>
+                <option value="<%= t %>" <%= currentType === t ? 'selected' : '' %>>
                   <%= SERVICE_LABELS[t] %>
                 </option>
               <% }); %>
@@ -59,7 +82,7 @@
         <div class="form-group">
           <label for="notes">Observações <span class="label-optional">(opcional)</span></label>
           <input type="text" id="notes" name="notes"
-            value="<%= service && service.notes ? service.notes : '' %>"
+            value="<%= currentNotes %>"
             placeholder="ex: Culto de missões, visitantes especiais...">
         </div>
 
@@ -162,6 +185,18 @@
     [1,2,3,4,5].forEach(function(n) {
       initSlot(n, initialSlots[n - 1]);
     });
+
+    var baseTemplateSelect = document.getElementById('base-template-select');
+    if (baseTemplateSelect) {
+      baseTemplateSelect.addEventListener('change', function() {
+        var selected = String(baseTemplateSelect.value || '').trim();
+        if (!selected) {
+          window.location.href = '/cultos/novo';
+          return;
+        }
+        window.location.href = '/cultos/novo?base=' + encodeURIComponent(selected);
+      });
+    }
   </script>
 </body>
 </html>

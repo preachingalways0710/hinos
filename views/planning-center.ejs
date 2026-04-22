@@ -93,16 +93,21 @@
         </div>
       </div>
 
-      <div class="pc-auth-actions">
-        <form method="POST" action="/integracoes/planning-center/connect">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-primary" <%= status.configured ? '' : 'disabled' %>>Conectar conta</button>
-        </form>
-        <form method="POST" action="/integracoes/planning-center/disconnect">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-secondary" <%= status.connected ? '' : 'disabled' %>>Desconectar</button>
-        </form>
-      </div>
+      <% if (status.configured) { %>
+        <div class="pc-auth-actions">
+          <% if (!status.connected) { %>
+            <form method="POST" action="/integracoes/planning-center/connect">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-primary">Conectar conta</button>
+            </form>
+          <% } else { %>
+            <form method="POST" action="/integracoes/planning-center/disconnect">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-secondary">Desconectar conta</button>
+            </form>
+          <% } %>
+        </div>
+      <% } %>
 
       <% if (!status.configured) { %>
         <div class="alert alert-warn" style="margin-top:.8rem">
