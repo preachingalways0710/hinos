@@ -106,11 +106,11 @@ function chooseBestPromidiaTemplate(templates = [], targetDate = '') {
 async function listServiceTemplates(limit = 120) {
   const safeLimit = Math.max(1, Math.min(300, Number(limit) || 120));
   const [rows] = await db.query(`
-    SELECT s.id, s.service_date, s.service_type, s.notes,
+    SELECT s.id, s.service_date, s.service_type, s.playlist_name, s.notes,
            COUNT(sh.id) AS hymn_count
     FROM services s
     LEFT JOIN service_hymns sh ON sh.service_id = s.id
-    GROUP BY s.id, s.service_date, s.service_type, s.notes
+    GROUP BY s.id, s.service_date, s.service_type, s.playlist_name, s.notes
     ORDER BY s.service_date DESC
     LIMIT ?
   `, [safeLimit]);
@@ -191,6 +191,7 @@ async function loadPromidiaPlaylistSlots(externalPlaylistId) {
   const empty = {
     slots: Array(5).fill(null),
     defaultType: 'dom_manha',
+    defaultPlaylistName: '',
     defaultNotes: '',
   };
   if (!externalId) return empty;
@@ -217,6 +218,7 @@ async function loadPromidiaPlaylistSlots(externalPlaylistId) {
   if (!hymnExternalIds.length) {
     return {
       ...empty,
+      defaultPlaylistName: row.name ? String(row.name) : '',
       defaultNotes: row.name ? `Base Promidia: ${row.name}` : '',
     };
   }
@@ -241,6 +243,7 @@ async function loadPromidiaPlaylistSlots(externalPlaylistId) {
   return {
     slots: await buildSlotsFromHymnIds(orderedLocalIds),
     defaultType: 'dom_manha',
+    defaultPlaylistName: row.name ? String(row.name) : '',
     defaultNotes: row.name ? `Base Promidia: ${row.name}` : '',
   };
 }
@@ -267,7 +270,7 @@ async function buildSlotsFromHymnIds(hymnIds = []) {
 
 router.get('/cultos', requireLogin, asyncHandler(async (req, res) => {
   const [services] = await db.query(`
-    SELECT s.id, s.service_date, s.service_type, s.notes,
+    SELECT s.id, s.service_date, s.service_type, s.playlist_name, s.notes,
            GROUP_CONCAT(
              CONCAT(hy.code, ' ', h.number, ' — ', h.title)
              ORDER BY sh.position SEPARATOR '\n'
@@ -292,6 +295,7 @@ router.get('/cultos/novo', requireLogin, asyncHandler(async (req, res) => {
   let formSeed = {
     service_date: defaultDate,
     service_type: 'dom_manha',
+    playlist_name: '',
     notes: '',
   };
 
@@ -304,13 +308,14 @@ router.get('/cultos/novo', requireLogin, asyncHandler(async (req, res) => {
 
   if (templateSelection.source === 'local' && templateSelection.id) {
     const [[sourceService]] = await db.query(
-      'SELECT id, service_date, service_type, notes FROM services WHERE id = ?',
+      'SELECT id, service_date, service_type, playlist_name, notes FROM services WHERE id = ?',
       [templateSelection.id]
     );
     if (sourceService) {
       formSeed = {
         service_date: defaultDate,
         service_type: sourceService.service_type || 'dom_manha',
+        playlist_name: sourceService.playlist_name || '',
         notes: sourceService.notes || '',
       };
       slots = await loadServiceSlots(sourceService.id);
@@ -320,6 +325,7 @@ router.get('/cultos/novo', requireLogin, asyncHandler(async (req, res) => {
     formSeed = {
       service_date: defaultDate,
       service_type: promidiaSeed.defaultType || 'dom_manha',
+      playlist_name: promidiaSeed.defaultPlaylistName || '',
       notes: promidiaSeed.defaultNotes || '',
     };
     slots = promidiaSeed.slots;
@@ -341,6 +347,7 @@ router.get('/cultos/novo', requireLogin, asyncHandler(async (req, res) => {
 router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
   const serviceDate = normalizeDateOnly(req.body.service_date);
   const serviceType = normalizeServiceType(req.body.service_type);
+  const playlistName = normalizeNullableText(req.body.playlist_name, 255);
   const notes = normalizeNullableText(req.body.notes, 500);
   const hymnIds = normalizeHymnIdSlots(req.body.hymn_ids);
   const sourceTemplate = parseTemplateSelection(req.body.base_template || req.body.base_service_id || '');
@@ -350,6 +357,7 @@ router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
   const formSeed = {
     service_date: serviceDate || String(req.body.service_date || '').trim(),
     service_type: serviceType || String(req.body.service_type || '').trim(),
+    playlist_name: playlistName || String(req.body.playlist_name || '').trim(),
     notes: notes || String(req.body.notes || '').trim(),
   };
 
@@ -369,8 +377,8 @@ router.post('/cultos', requireLogin, asyncHandler(async (req, res) => {
 
   try {
     const [result] = await db.query(
-      'INSERT INTO services (service_date, service_type, notes) VALUES (?, ?, ?)',
-      [serviceDate, serviceType, notes]
+      'INSERT INTO services (service_date, service_type, playlist_name, notes) VALUES (?, ?, ?, ?)',
+      [serviceDate, serviceType, playlistName, notes]
     );
     const serviceId = result.insertId;
     for (let i = 0; i < hymnIds.length; i += 1) {
@@ -406,13 +414,14 @@ router.get('/cultos/:id/editar', requireLogin, asyncHandler(async (req, res) => 
   if (!service) return res.redirect('/cultos');
   const slots = await loadServiceSlots(serviceId);
   const catalogs = await loadPlannerCatalogs();
+  const templates = await loadCreateTemplates();
   res.render('service-form', {
     service,
     slots,
     error: null,
     formSeed: null,
     templateServices: [],
-    templatePromidiaPlaylists: [],
+    templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
     sourceTemplateKey: '',
     themes: catalogs.themes,
     hymnals: catalogs.hymnals,
@@ -425,9 +434,11 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
 
   const serviceDate = normalizeDateOnly(req.body.service_date);
   const serviceType = normalizeServiceType(req.body.service_type);
+  const playlistName = normalizeNullableText(req.body.playlist_name, 255);
   const notes = normalizeNullableText(req.body.notes, 500);
   const hymnIds = normalizeHymnIdSlots(req.body.hymn_ids);
   const catalogs = await loadPlannerCatalogs();
+  const templates = await loadCreateTemplates();
 
   if (!serviceDate || !serviceType) {
     const [[service]] = await db.query('SELECT * FROM services WHERE id = ?', [serviceId]);
@@ -437,7 +448,7 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
       error: 'Data e tipo de culto são obrigatórios.',
       formSeed: null,
       templateServices: [],
-      templatePromidiaPlaylists: [],
+      templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
       sourceTemplateKey: '',
       themes: catalogs.themes,
       hymnals: catalogs.hymnals,
@@ -446,8 +457,8 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
 
   try {
     await db.query(
-      'UPDATE services SET service_date=?, service_type=?, notes=? WHERE id=?',
-      [serviceDate, serviceType, notes, serviceId]
+      'UPDATE services SET service_date=?, service_type=?, playlist_name=?, notes=? WHERE id=?',
+      [serviceDate, serviceType, playlistName, notes, serviceId]
     );
     await db.query('DELETE FROM service_hymns WHERE service_id = ?', [serviceId]);
     for (let i = 0; i < hymnIds.length; i += 1) {
@@ -466,7 +477,7 @@ router.post('/cultos/:id/atualizar', requireLogin, asyncHandler(async (req, res)
         error: 'Já existe um culto registrado para essa data e tipo.',
         formSeed: null,
         templateServices: [],
-        templatePromidiaPlaylists: [],
+        templatePromidiaPlaylists: templates.templatePromidiaPlaylists,
         sourceTemplateKey: '',
         themes: catalogs.themes,
         hymnals: catalogs.hymnals,

@@ -28,6 +28,7 @@
     <% const seed = formSeed || {}; %>
     <% const currentDate = isEditMode ? service.service_date : (seed.service_date || ''); %>
     <% const currentType = isEditMode ? service.service_type : (seed.service_type || 'dom_manha'); %>
+    <% const currentPlaylistName = isEditMode ? (service.playlist_name || '') : (seed.playlist_name || ''); %>
     <% const currentNotes = isEditMode ? (service.notes || '') : (seed.notes || ''); %>
     <div class="page-header">
       <h1><%= service ? 'Editar Culto' : 'Planejar Culto' %></h1>
@@ -94,6 +95,23 @@
                   <% }); %>
                 </select>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label for="playlist_name">Playlist no App (Promidia) <span class="label-optional">(opcional)</span></label>
+              <input type="text" id="playlist_name" name="playlist_name" list="playlist-name-options"
+                value="<%= currentPlaylistName %>"
+                placeholder="Ex: APELO, DOMINGO MANHÃ, CEIA...">
+              <datalist id="playlist-name-options">
+                <% const seenPlaylistNames = new Set(); %>
+                <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
+                  <% const pName = String(t && t.name || '').trim(); %>
+                  <% if (!pName || seenPlaylistNames.has(pName)) return; %>
+                  <% seenPlaylistNames.add(pName); %>
+                  <option value="<%= pName %>"></option>
+                <% }); %>
+              </datalist>
+              <p class="form-hint">Este nome deve bater com a playlist real usada no Promidia app.</p>
             </div>
 
             <div class="form-group">

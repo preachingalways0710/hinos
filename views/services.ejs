@@ -48,7 +48,12 @@
             <% services.forEach(function(s) { %>
               <tr>
                 <td class="td-date"><%= s.service_date %></td>
-                <td><%= SERVICE_LABELS[s.service_type] || s.service_type %></td>
+                <td>
+                  <div><%= SERVICE_LABELS[s.service_type] || s.service_type %></div>
+                  <% if (s.playlist_name) { %>
+                    <div class="service-notes">Playlist: <%= s.playlist_name %></div>
+                  <% } %>
+                </td>
                 <td>
                   <% if (s.hymn_list) { %>
                     <div class="hymn-list-lines">

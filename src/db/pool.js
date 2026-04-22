@@ -68,6 +68,11 @@ async function ensureAppTables() {
       KEY idx_promidia_playlists_updated (updated_at)
     )
   `);
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN playlist_name VARCHAR(255) DEFAULT NULL AFTER service_type');
+  } catch (err) {
+    if (!err || err.code !== 'ER_DUP_FIELDNAME') throw err;
+  }
 }
 
 module.exports = {

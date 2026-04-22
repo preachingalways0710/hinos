@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS services (
   id           INT AUTO_INCREMENT PRIMARY KEY,
   service_date DATE NOT NULL,
   service_type ENUM('dom_manha','dom_noite','qua','especial') NOT NULL,
+  playlist_name VARCHAR(255) DEFAULT NULL,
   notes        VARCHAR(500) DEFAULT NULL,
   created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY unique_service (service_date, service_type)

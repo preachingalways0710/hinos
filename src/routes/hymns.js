@@ -34,11 +34,11 @@ function nextSundayIso(today = new Date()) {
 async function listCultoOptions(limit = 120) {
   const safeLimit = Math.max(1, Math.min(300, Number(limit) || 120));
   const [rows] = await db.query(`
-    SELECT s.id, s.service_date, s.service_type, s.notes,
+    SELECT s.id, s.service_date, s.service_type, s.playlist_name, s.notes,
            COUNT(sh.id) AS hymn_count
     FROM services s
     LEFT JOIN service_hymns sh ON sh.service_id = s.id
-    GROUP BY s.id, s.service_date, s.service_type, s.notes
+    GROUP BY s.id, s.service_date, s.service_type, s.playlist_name, s.notes
     ORDER BY
       CASE WHEN s.service_date >= CURDATE() THEN 0 ELSE 1 END ASC,
       CASE WHEN s.service_date >= CURDATE() THEN s.service_date END ASC,
@@ -120,6 +120,16 @@ router.get('/hinos', requireLogin, asyncHandler(async (req, res) => {
   const [themes] = await db.query('SELECT * FROM themes ORDER BY name');
   const [hymnals] = await db.query('SELECT code, name FROM hymnals ORDER BY code');
   const cultoOptions = await listCultoOptions();
+  const [promidiaRows] = await db.query(`
+    SELECT name
+    FROM promidia_playlists
+    WHERE provider = 'promidia'
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 200
+  `);
+  const promidiaPlaylistNames = [...new Set((promidiaRows || [])
+    .map(row => String(row?.name || '').trim())
+    .filter(Boolean))];
 
   function buildListUrl(overrides = {}) {
     const merged = {
@@ -158,6 +168,7 @@ router.get('/hinos', requireLogin, asyncHandler(async (req, res) => {
     pageItems,
     buildListUrl,
     cultoOptions,
+    promidiaPlaylistNames,
     nextSunday: nextSundayIso(),
   });
 }));
@@ -374,6 +385,7 @@ router.post('/api/hinos/:id/add-to-culto', requireLogin, asyncHandler(async (req
   const existingServiceId = toPositiveInt(req.body.serviceId, 0);
   const serviceDate = normalizeDateOnly(req.body.serviceDate || '');
   const serviceType = normalizeServiceType(req.body.serviceType || '');
+  const playlistName = normalizeNullableText(req.body.playlistName || '', 255);
   if (!hymnId) return res.status(400).json({ success: false, error: 'INVALID_HYMN_ID' });
 
   const [[hymnExists]] = await db.query('SELECT id FROM hymns WHERE id = ? LIMIT 1', [hymnId]);
@@ -393,18 +405,21 @@ router.post('/api/hinos/:id/add-to-culto', requireLogin, asyncHandler(async (req
     }
     try {
       const [insert] = await db.query(
-        'INSERT INTO services (service_date, service_type, notes) VALUES (?, ?, ?)',
-        [normalizedDate, normalizedType, null]
+        'INSERT INTO services (service_date, service_type, playlist_name, notes) VALUES (?, ?, ?, ?)',
+        [normalizedDate, normalizedType, playlistName, null]
       );
       serviceId = insert.insertId;
       createdService = true;
     } catch (err) {
       if (err.code !== 'ER_DUP_ENTRY') throw err;
       const [[existing]] = await db.query(
-        'SELECT id FROM services WHERE service_date = ? AND service_type = ? LIMIT 1',
+        'SELECT id, playlist_name FROM services WHERE service_date = ? AND service_type = ? LIMIT 1',
         [normalizedDate, normalizedType]
       );
       serviceId = toPositiveInt(existing?.id, 0);
+      if (serviceId && playlistName && !normalizeShortText(existing?.playlist_name || '', 255)) {
+        await db.query('UPDATE services SET playlist_name = ? WHERE id = ?', [playlistName, serviceId]);
+      }
     }
   }
 
