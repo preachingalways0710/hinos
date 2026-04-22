@@ -12,8 +12,12 @@
     <a href="/hinos" class="active">Hinos</a>
     <a href="/cultos">Cultos</a>
     <a href="/temas">Temas</a>
+    <a href="/integracoes/planning-center">Planning Center</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
     <span class="spacer"></span>
+    <span class="nav-version">v <%= appVersion %></span>
     <form method="POST" action="/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
     </form>
   </nav>
@@ -30,6 +34,7 @@
       <% } %>
 
       <form method="POST" action="<%= hymn ? '/hinos/' + hymn.id + '/atualizar' : '/hinos' %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
         <div class="form-row">
           <div class="form-group">

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sync Logs</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hinos" class="<%= path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
+    <a href="/cultos" class="<%= path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
+    <a href="/temas" class="<%= path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
+    <a href="/integracoes/planning-center" class="<%= path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Planning Center</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
+    <span class="spacer"></span>
+    <span class="nav-version">v <%= appVersion %></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Promidia Sync Logs</h1>
+      <a href="/integracoes/planning-center" class="btn btn-secondary">← Integrações</a>
+    </div>
+
+    <div class="card card-table">
+      <% if (!logs || logs.length === 0) { %>
+        <div class="empty-msg" style="padding:1rem">Nenhum sync registrado ainda.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px">Quando</th>
+              <th style="width:90px">Status</th>
+              <th style="width:80px">Recv</th>
+              <th style="width:80px">Proc</th>
+              <th style="width:80px">Created</th>
+              <th style="width:80px">Updated</th>
+              <th style="width:90px">Unchanged</th>
+              <th style="width:80px">Dropped</th>
+              <th style="width:90px">Theme+</th>
+              <th>Detalhes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% logs.forEach(function(row) { %>
+              <tr>
+                <td class="td-date"><%= row.createdAt %></td>
+                <td>
+                  <% if (row.status === 'success') { %>
+                    <span class="badge badge-ok">success</span>
+                  <% } else { %>
+                    <span class="badge badge-error">error</span>
+                  <% } %>
+                </td>
+                <td><%= row.received %></td>
+                <td><%= row.processed %></td>
+                <td><%= row.created %></td>
+                <td><%= row.updated %></td>
+                <td><%= row.unchanged %></td>
+                <td><%= row.dropped %></td>
+                <td><%= row.themedLinks %></td>
+                <td>
+                  <% if (row.status === 'error') { %>
+                    <span class="never-used"><%= row.errorCode || 'sync_failed' %></span>
+                  <% } else { %>
+                    <span class="muted"><%= row.details && row.details.sourceVersion ? ('Promidia ' + row.details.sourceVersion) : '—' %></span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

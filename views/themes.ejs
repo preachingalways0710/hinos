@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Temas</title>
   <link rel="stylesheet" href="/style.css">
+  <meta name="csrf-token" content="<%= csrfToken %>">
 </head>
 <body>
   <nav>
@@ -12,8 +13,12 @@
     <a href="/hinos" class="<%= path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
     <a href="/cultos" class="<%= path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
     <a href="/temas" class="<%= path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
+    <a href="/integracoes/planning-center" class="<%= path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Planning Center</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
     <span class="spacer"></span>
+    <span class="nav-version">v <%= appVersion %></span>
     <form method="POST" action="/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
     </form>
   </nav>
@@ -26,6 +31,7 @@
     <div class="card" style="max-width:480px">
       <h2 class="card-title">Adicionar Tema</h2>
       <form method="POST" action="/temas" style="display:flex;gap:.75rem">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="text" name="name" placeholder="Nome do tema" required style="flex:1">
         <button type="submit" class="btn btn-primary">Adicionar</button>
       </form>
@@ -60,10 +66,15 @@
   </div>
 
   <script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
     async function deleteTheme(id, btn) {
       if (!confirm('Excluir este tema? Ele será removido de todos os hinos.')) return;
       btn.disabled = true;
-      var res = await fetch('/api/temas/' + id + '/delete', { method: 'POST' });
+      var res = await fetch('/api/temas/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'x-csrf-token': csrfToken },
+      });
       if ((await res.json()).success) {
         btn.closest('tr').remove();
       } else {

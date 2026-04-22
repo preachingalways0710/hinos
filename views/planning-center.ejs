@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning Center</title>
+  <link rel="stylesheet" href="/style.css">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hinos" class="<%= path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
+    <a href="/cultos" class="<%= path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
+    <a href="/temas" class="<%= path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
+    <a href="/integracoes/planning-center" class="<%= path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Planning Center</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
+    <span class="spacer"></span>
+    <span class="nav-version">v <%= appVersion %></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+    </form>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Planning Center</h1>
+      <a href="/cultos" class="btn btn-secondary">← Voltar para Cultos</a>
+    </div>
+
+    <div class="card">
+      <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="pc-status-row">
+        <div>
+          <strong>Status:</strong>
+          <span id="pc-status-text">
+            <% if (!status.configured) { %>
+              Não configurado (.env)
+            <% } else if (!status.connected) { %>
+              Desconectado
+            <% } else { %>
+              Conectado <%= status.profile && status.profile.name ? 'como ' + status.profile.name : '' %>
+            <% } %>
+          </span>
+        </div>
+        <div class="pc-status-hints">
+          <% if (!status.encryptedAtRest) { %>
+            <span class="badge badge-warn">Tokens sem criptografia em repouso (defina APP_ENCRYPTION_KEY)</span>
+          <% } %>
+          <% if (status.importedAt) { %>
+            <span class="badge badge-info">Último import: <%= status.importedAt %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="pc-auth-actions">
+        <form method="POST" action="/integracoes/planning-center/connect">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-primary" <%= status.configured ? '' : 'disabled' %>>Conectar conta</button>
+        </form>
+        <form method="POST" action="/integracoes/planning-center/disconnect">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-secondary" <%= status.connected ? '' : 'disabled' %>>Desconectar</button>
+        </form>
+      </div>
+      <% if (!status.configured) { %>
+        <p class="form-hint">Configure <code>PCO_CLIENT_ID</code>, <code>PCO_CLIENT_SECRET</code> e <code>PCO_REDIRECT_URI</code> no servidor.</p>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Importar Plano</h2>
+      <div id="pc-message" class="form-hint">Selecione service type e plano para gerar preview.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pc-service-type">Service Type</label>
+          <select id="pc-service-type">
+            <option value="">Carregando...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pc-plan">Plano</label>
+          <select id="pc-plan">
+            <option value="">Selecione um service type</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pc-tolerance">Tolerância de Match</label>
+          <select id="pc-tolerance">
+            <option value="strict">Strict</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pc-import-mode">Modo de Import</label>
+          <select id="pc-import-mode">
+            <option value="append" selected>Append</option>
+            <option value="replace">Replace</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pc-local-date">Data local do culto</label>
+          <input type="date" id="pc-local-date">
+        </div>
+        <div class="form-group">
+          <label for="pc-local-type">Tipo de culto local</label>
+          <select id="pc-local-type">
+            <option value="dom_manha">Domingo Manhã</option>
+            <option value="dom_noite">Domingo Noite</option>
+            <option value="qua">Quarta-Feira</option>
+            <option value="especial">Culto Especial</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pc-max-slots">Máximo de hinos (UI atual suporta 5)</label>
+          <input type="number" id="pc-max-slots" min="1" max="5" value="5">
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <div class="form-actions">
+            <button id="pc-preview-btn" class="btn btn-secondary" type="button">Gerar Preview</button>
+            <button id="pc-import-btn" class="btn btn-primary" type="button" disabled>Importar para Cultos</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pc-summary" id="pc-summary">Sem preview.</div>
+      <div class="pc-preview-wrap">
+        <table id="pc-preview-table">
+          <thead>
+            <tr>
+              <th style="width:60px">#</th>
+              <th>Item</th>
+              <th style="width:100px">Tipo</th>
+              <th style="width:100px">Status</th>
+              <th>Match</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="muted">Nenhum preview carregado.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const status = <%- JSON.stringify(status || {}) %>;
+    let previewPayload = null;
+
+    const messageEl = document.getElementById('pc-message');
+    const summaryEl = document.getElementById('pc-summary');
+    const serviceTypeEl = document.getElementById('pc-service-type');
+    const planEl = document.getElementById('pc-plan');
+    const toleranceEl = document.getElementById('pc-tolerance');
+    const importModeEl = document.getElementById('pc-import-mode');
+    const localDateEl = document.getElementById('pc-local-date');
+    const localTypeEl = document.getElementById('pc-local-type');
+    const maxSlotsEl = document.getElementById('pc-max-slots');
+    const previewBtn = document.getElementById('pc-preview-btn');
+    const importBtn = document.getElementById('pc-import-btn');
+    const tableBody = document.querySelector('#pc-preview-table tbody');
+
+    function setMessage(msg) {
+      messageEl.textContent = msg || '';
+    }
+
+    function statusBadge(status) {
+      if (status === 'matched') return '<span class="badge badge-ok">matched</span>';
+      if (status === 'ambiguous') return '<span class="badge badge-warn">ambiguous</span>';
+      return '<span class="badge badge-error">unmatched</span>';
+    }
+
+    function renderPreview(preview) {
+      previewPayload = preview;
+      importBtn.disabled = !preview;
+      if (!preview || !Array.isArray(preview.items) || !preview.items.length) {
+        summaryEl.textContent = 'Sem preview.';
+        tableBody.innerHTML = '<tr><td colspan="5" class="muted">Nenhum preview carregado.</td></tr>';
+        return;
+      }
+      const summary = preview.summary || {};
+      summaryEl.textContent = `Total: ${summary.total || 0} | matched: ${summary.matched || 0} | ambiguous: ${summary.ambiguous || 0} | unmatched: ${summary.unmatched || 0}`;
+      tableBody.innerHTML = preview.items.map(item => {
+        const match = item.match || {};
+        const top = (match.candidates || [])[0];
+        const label = match.hymnId
+          ? `${top && top.hymnTitle ? top.hymnTitle : 'ID ' + match.hymnId} (conf ${match.confidence || 0})`
+          : (top && top.hymnTitle ? `${top.hymnTitle} (conf ${top.confidence || 0})` : 'Sem candidato');
+        return `
+          <tr>
+            <td>${item.sequence || ''}</td>
+            <td>${item.title || ''}</td>
+            <td>${item.itemType || ''}</td>
+            <td>${statusBadge(match.status || 'unmatched')}</td>
+            <td>${label}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function getJson(url) {
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+      });
+      return res.json();
+    }
+
+    async function postJson(url, payload) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        body: JSON.stringify(payload || {}),
+      });
+      return res.json();
+    }
+
+    async function loadServiceTypes() {
+      if (!status.connected) {
+        serviceTypeEl.innerHTML = '<option value="">Conecte sua conta primeiro</option>';
+        planEl.innerHTML = '<option value="">Conecte sua conta primeiro</option>';
+        return;
+      }
+      const response = await getJson('/api/planning-center/service-types');
+      if (!response.ok) throw new Error(response.error || 'Falha ao carregar service types.');
+      const rows = response.serviceTypes || [];
+      if (!rows.length) {
+        serviceTypeEl.innerHTML = '<option value="">Nenhum service type encontrado</option>';
+        return;
+      }
+      serviceTypeEl.innerHTML = rows.map(row => `<option value="${row.id}">${row.name}</option>`).join('');
+      await loadPlans();
+    }
+
+    async function loadPlans() {
+      const serviceTypeId = serviceTypeEl.value;
+      if (!serviceTypeId) {
+        planEl.innerHTML = '<option value="">Selecione um service type</option>';
+        return;
+      }
+      const response = await getJson('/api/planning-center/plans?serviceTypeId=' + encodeURIComponent(serviceTypeId));
+      if (!response.ok) throw new Error(response.error || 'Falha ao carregar planos.');
+      const rows = response.plans || [];
+      if (!rows.length) {
+        planEl.innerHTML = '<option value="">Nenhum plano encontrado</option>';
+        return;
+      }
+      planEl.innerHTML = rows.map(row => {
+        const label = row.shortDates ? `${row.shortDates} — ${row.title}` : row.title;
+        return `<option value="${row.id}">${label}</option>`;
+      }).join('');
+    }
+
+    serviceTypeEl.addEventListener('change', async () => {
+      try {
+        await loadPlans();
+        renderPreview(null);
+      } catch (err) {
+        setMessage(err.message || 'Erro ao carregar planos.');
+      }
+    });
+
+    previewBtn.addEventListener('click', async () => {
+      try {
+        const serviceTypeId = serviceTypeEl.value;
+        const planId = planEl.value;
+        if (!serviceTypeId || !planId) {
+          setMessage('Selecione service type e plano.');
+          return;
+        }
+        setMessage('Gerando preview...');
+        const response = await getJson(
+          '/api/planning-center/preview?serviceTypeId=' + encodeURIComponent(serviceTypeId)
+          + '&planId=' + encodeURIComponent(planId)
+          + '&tolerance=' + encodeURIComponent(toleranceEl.value)
+        );
+        if (!response.ok) throw new Error(response.error || 'Falha no preview.');
+        renderPreview(response.preview);
+        if (response.preview && response.preview.planDate && !localDateEl.value) {
+          localDateEl.value = String(response.preview.planDate).slice(0, 10);
+        }
+        setMessage('Preview pronto.');
+      } catch (err) {
+        setMessage(err.message || 'Erro ao gerar preview.');
+      }
+    });
+
+    importBtn.addEventListener('click', async () => {
+      try {
+        if (!previewPayload) {
+          setMessage('Gere preview antes de importar.');
+          return;
+        }
+        if (!localDateEl.value || !localTypeEl.value) {
+          setMessage('Defina data e tipo do culto local.');
+          return;
+        }
+        if (importModeEl.value === 'replace') {
+          if (!confirm('Substituir culto existente para essa data/tipo (se houver)?')) return;
+        }
+        setMessage('Importando...');
+        const response = await postJson('/api/planning-center/import', {
+          serviceTypeId: serviceTypeEl.value,
+          planId: planEl.value,
+          tolerance: toleranceEl.value,
+          localDate: localDateEl.value,
+          localServiceType: localTypeEl.value,
+          importMode: importModeEl.value,
+          maxSlots: Number(maxSlotsEl.value || 5),
+        });
+        if (!response.ok) throw new Error(response.error || 'Falha no import.');
+        setMessage(`Importado com sucesso: ${response.result.importedCount} hino(s).`);
+      } catch (err) {
+        setMessage(err.message || 'Erro ao importar.');
+      }
+    });
+
+    (async () => {
+      try {
+        await loadServiceTypes();
+      } catch (err) {
+        setMessage(err.message || 'Falha ao inicializar integração.');
+      }
+    })();
+  </script>
+</body>
+</html>

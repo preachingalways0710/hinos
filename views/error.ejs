@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Erro' %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Hinos</span>
+    <a href="/hinos" class="<%= path && path.startsWith('/hinos') ? 'active' : '' %>">Hinos</a>
+    <a href="/cultos" class="<%= path && path.startsWith('/cultos') ? 'active' : '' %>">Cultos</a>
+    <a href="/temas" class="<%= path && path.startsWith('/temas') ? 'active' : '' %>">Temas</a>
+    <a href="/integracoes/planning-center" class="<%= path && path.startsWith('/integracoes/planning-center') ? 'active' : '' %>">Planning Center</a>
+    <a href="/integracoes/sync-logs" class="<%= path.startsWith('/integracoes/sync-logs') ? 'active' : '' %>">Sync Logs</a>
+    <span class="spacer"></span>
+    <span class="nav-version">v <%= appVersion %></span>
+    <% if (loggedIn) { %>
+      <form method="POST" action="/logout" style="display:inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-secondary btn-sm">Sair</button>
+      </form>
+    <% } %>
+  </nav>
+
+  <div class="container">
+    <div class="card" style="max-width:680px">
+      <h1 style="margin-bottom:1rem"><%= title || 'Erro' %></h1>
+      <p class="empty-msg"><%= message || 'Ocorreu um erro inesperado.' %></p>
+      <div class="form-actions" style="margin-top:1rem">
+        <a href="/" class="btn btn-primary">Voltar ao início</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
