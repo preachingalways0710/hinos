@@ -49,7 +49,7 @@
           <thead>
             <tr>
               <th>Data</th>
-              <th>Culto</th>
+              <th>Playlist</th>
               <th>Hinos</th>
               <th></th>
             </tr>
@@ -58,7 +58,7 @@
             <% recent.forEach(function(s) { %>
               <tr>
                 <td class="td-date"><%= s.service_date %></td>
-                <td><%= SERVICE_LABELS[s.service_type] || s.service_type %></td>
+                <td><%= s.playlist_name || 'Sem playlist' %></td>
                 <td>
                   <% if (s.hymn_list) { %>
                     <div class="hymn-list-lines">

@@ -27,7 +27,6 @@
     <% const isEditMode = !!(service && service.id); %>
     <% const seed = formSeed || {}; %>
     <% const currentDate = isEditMode ? service.service_date : (seed.service_date || ''); %>
-    <% const currentType = isEditMode ? service.service_type : (seed.service_type || 'dom_manha'); %>
     <% const currentPlaylistName = isEditMode ? (service.playlist_name || '') : (seed.playlist_name || ''); %>
     <% const currentNotes = isEditMode ? (service.notes || '') : (seed.notes || ''); %>
     <div class="page-header">
@@ -56,7 +55,7 @@
                   <% (templateServices || []).forEach(function(t) { %>
                     <% var key = 'local:' + t.id; %>
                     <option value="<%= key %>" <%= (sourceTemplateKey || '') === key ? 'selected' : '' %>>
-                      <%= t.service_date %> — <%= SERVICE_LABELS[t.service_type] || t.service_type %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
+                      <%= t.service_date %> — <%= t.playlist_name || 'Sem playlist' %> (<%= t.hymn_count || 0 %> hinos)<%= t.notes ? (' — ' + t.notes) : '' %>
                     </option>
                   <% }); %>
                 </optgroup>
@@ -72,40 +71,33 @@
                 </optgroup>
               <% } %>
             </select>
-            <p class="form-hint">Escolha um plano para copiar os hinos e o tipo de culto, depois ajuste a data.</p>
+            <p class="form-hint">Escolha um plano para copiar os hinos e a playlist, depois ajuste a data.</p>
           </div>
         <% } %>
 
         <div class="planner-grid">
           <div class="planner-main">
-            <div class="form-row">
-              <div class="form-group">
-                <label for="service_date">Data</label>
-                <input type="date" id="service_date" name="service_date"
-                  value="<%= currentDate %>" required>
-              </div>
-              <div class="form-group">
-                <label for="service_type">Tipo de Culto</label>
-                <select id="service_type" name="service_type" required>
-                  <% var types = ['dom_manha','dom_noite','qua','especial']; %>
-                  <% types.forEach(function(t) { %>
-                    <option value="<%= t %>" <%= currentType === t ? 'selected' : '' %>>
-                      <%= SERVICE_LABELS[t] %>
-                    </option>
-                  <% }); %>
-                </select>
-              </div>
+            <div class="form-group">
+              <label for="service_date">Data</label>
+              <input type="date" id="service_date" name="service_date"
+                value="<%= currentDate %>" required>
             </div>
 
             <div class="form-group">
-              <label for="playlist_name">Playlist no App (Promidia) <span class="label-optional">(opcional)</span></label>
+              <label for="playlist_name">Playlist no App (Promidia)</label>
               <input type="text" id="playlist_name" name="playlist_name" list="playlist-name-options"
                 value="<%= currentPlaylistName %>"
-                placeholder="Ex: APELO, DOMINGO MANHÃ, CEIA...">
+                placeholder="Ex: APELO, DOMINGO MANHÃ, CEIA..." required>
               <datalist id="playlist-name-options">
                 <% const seenPlaylistNames = new Set(); %>
                 <% (templatePromidiaPlaylists || []).forEach(function(t) { %>
                   <% const pName = String(t && t.name || '').trim(); %>
+                  <% if (!pName || seenPlaylistNames.has(pName)) return; %>
+                  <% seenPlaylistNames.add(pName); %>
+                    <option value="<%= pName %>"></option>
+                <% }); %>
+                <% (templateServices || []).forEach(function(t) { %>
+                  <% const pName = String(t && t.playlist_name || '').trim(); %>
                   <% if (!pName || seenPlaylistNames.has(pName)) return; %>
                   <% seenPlaylistNames.add(pName); %>
                   <option value="<%= pName %>"></option>

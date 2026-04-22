@@ -39,7 +39,7 @@
           <thead>
             <tr>
               <th style="width:110px">Data</th>
-              <th style="width:140px">Culto</th>
+              <th style="width:220px">Playlist</th>
               <th>Hinos</th>
               <th style="width:100px"></th>
             </tr>
@@ -49,10 +49,7 @@
               <tr>
                 <td class="td-date"><%= s.service_date %></td>
                 <td>
-                  <div><%= SERVICE_LABELS[s.service_type] || s.service_type %></div>
-                  <% if (s.playlist_name) { %>
-                    <div class="service-notes">Playlist: <%= s.playlist_name %></div>
-                  <% } %>
+                  <div><%= s.playlist_name || 'Sem playlist' %></div>
                 </td>
                 <td>
                   <% if (s.hymn_list) { %>

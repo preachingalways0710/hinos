@@ -48,7 +48,7 @@
               <option value="">Selecione um culto...</option>
               <% recentServices.forEach(function(svc) { %>
                 <option value="<%= svc.id %>">
-                  <%= svc.service_date %> — <%= SERVICE_LABELS[svc.service_type] || svc.service_type %><%= svc.notes ? (' — ' + svc.notes) : '' %>
+                  <%= svc.service_date %> — <%= svc.playlist_name || 'Sem playlist' %><%= svc.notes ? (' — ' + svc.notes) : '' %>
                 </option>
               <% }); %>
             </select>
@@ -161,13 +161,23 @@
             <input type="date" id="pc-local-date">
           </div>
           <div class="form-group">
-            <label for="pc-local-type">Tipo de culto no Hinos</label>
-            <select id="pc-local-type">
-              <option value="dom_manha">Domingo Manhã</option>
-              <option value="dom_noite">Domingo Noite</option>
-              <option value="qua">Quarta-Feira</option>
-              <option value="especial">Culto Especial</option>
-            </select>
+            <label for="pc-local-playlist">Playlist no App (Promidia)</label>
+            <input type="text" id="pc-local-playlist" list="pc-local-playlist-list" placeholder="Ex: APELO, CEIA...">
+            <datalist id="pc-local-playlist-list">
+              <% const seenPcPlaylists = new Set(); %>
+              <% (promidiaPlaylistNames || []).forEach(function(name) { %>
+                <% const safeName = String(name || '').trim(); %>
+                <% if (!safeName || seenPcPlaylists.has(safeName)) return; %>
+                <% seenPcPlaylists.add(safeName); %>
+                <option value="<%= safeName %>"></option>
+              <% }); %>
+              <% (recentServices || []).forEach(function(svc) { %>
+                <% const safeName = String(svc && svc.playlist_name || '').trim(); %>
+                <% if (!safeName || seenPcPlaylists.has(safeName)) return; %>
+                <% seenPcPlaylists.add(safeName); %>
+                <option value="<%= safeName %>"></option>
+              <% }); %>
+            </datalist>
           </div>
         </div>
 
@@ -238,7 +248,7 @@
     const toleranceEl = document.getElementById('pc-tolerance');
     const importModeEl = document.getElementById('pc-import-mode');
     const localDateEl = document.getElementById('pc-local-date');
-    const localTypeEl = document.getElementById('pc-local-type');
+    const localPlaylistEl = document.getElementById('pc-local-playlist');
     const maxSlotsEl = document.getElementById('pc-max-slots');
     const previewBtn = document.getElementById('pc-preview-btn');
     const importBtn = document.getElementById('pc-import-btn');
@@ -374,6 +384,9 @@
           if (response.preview && response.preview.planDate && !localDateEl.value) {
             localDateEl.value = String(response.preview.planDate).slice(0, 10);
           }
+          if (response.preview && response.preview.planTitle && localPlaylistEl && !localPlaylistEl.value) {
+            localPlaylistEl.value = String(response.preview.planTitle);
+          }
           setMessage('Prévia pronta.');
         } catch (err) {
           setMessage(err.message || 'Erro ao gerar prévia.');
@@ -386,12 +399,12 @@
             setMessage('Gere a prévia antes de importar.');
             return;
           }
-          if (!localDateEl.value || !localTypeEl.value) {
-            setMessage('Defina data e tipo do culto no Hinos.');
+          if (!localDateEl.value || !localPlaylistEl.value) {
+            setMessage('Defina data e playlist no Hinos.');
             return;
           }
           if (importModeEl.value === 'replace') {
-            if (!confirm('Substituir culto existente para essa data/tipo (se houver)?')) return;
+            if (!confirm('Substituir culto existente para essa data/playlist (se houver)?')) return;
           }
           setMessage('Importando...');
           const response = await postJson('/api/planning-center/import', {
@@ -399,7 +412,7 @@
             planId: planEl.value,
             tolerance: toleranceEl.value,
             localDate: localDateEl.value,
-            localServiceType: localTypeEl.value,
+            localPlaylistName: localPlaylistEl.value,
             importMode: importModeEl.value,
             maxSlots: Number(maxSlotsEl.value || 5),
           });

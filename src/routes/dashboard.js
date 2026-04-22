@@ -9,7 +9,7 @@ const router = express.Router();
 
 router.get('/', requireLogin, asyncHandler(async (req, res) => {
   const [recent] = await db.query(`
-    SELECT s.id, s.service_date, s.service_type,
+    SELECT s.id, s.service_date, s.playlist_name,
            GROUP_CONCAT(
              CONCAT(hy.code, ' ', h.number, ' — ', h.title)
              ORDER BY sh.position SEPARATOR '\n'

@@ -73,6 +73,33 @@ async function ensureAppTables() {
   } catch (err) {
     if (!err || err.code !== 'ER_DUP_FIELDNAME') throw err;
   }
+  await db.query(`
+    UPDATE services
+    SET playlist_name = CASE service_type
+      WHEN 'dom_manha' THEN 'Domingo Manhã'
+      WHEN 'dom_noite' THEN 'Domingo Noite'
+      WHEN 'qua' THEN 'Quarta-Feira'
+      ELSE CONCAT('Culto ', DATE_FORMAT(service_date, '%Y-%m-%d'))
+    END
+    WHERE playlist_name IS NULL OR TRIM(playlist_name) = ''
+  `);
+  try {
+    await db.query('ALTER TABLE services MODIFY COLUMN playlist_name VARCHAR(255) NOT NULL');
+  } catch (err) {
+    if (!err || err.code !== 'ER_DUP_FIELDNAME') {
+      // Ignore incompatible engine/version errors; app-level validation still enforces it.
+    }
+  }
+  try {
+    await db.query('ALTER TABLE services DROP INDEX unique_service');
+  } catch (err) {
+    if (!err || (err.code !== 'ER_CANT_DROP_FIELD_OR_KEY' && err.code !== 'ER_DROP_INDEX_FK')) throw err;
+  }
+  try {
+    await db.query('ALTER TABLE services ADD UNIQUE KEY unique_service_playlist (service_date, playlist_name)');
+  } catch (err) {
+    if (!err || err.code !== 'ER_DUP_KEYNAME') throw err;
+  }
 }
 
 module.exports = {

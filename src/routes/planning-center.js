@@ -17,7 +17,7 @@ const {
 } = require('../services/planning-center');
 const {
   normalizeDateOnly,
-  normalizeServiceType,
+  normalizeNullableText,
   normalizeShortText,
 } = require('../utils/validation');
 
@@ -26,14 +26,22 @@ const router = express.Router();
 router.get('/integracoes/planning-center', requireLogin, asyncHandler(async (req, res) => {
   const status = await getStatus();
   const [recentServices] = await db.query(`
-    SELECT id, service_date, service_type, notes
+    SELECT id, service_date, playlist_name, notes
     FROM services
     ORDER BY service_date DESC
     LIMIT 40
   `);
+  const [promidiaPlaylists] = await db.query(`
+    SELECT name
+    FROM promidia_playlists
+    WHERE provider = 'promidia'
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 120
+  `);
   res.render('planning-center', {
     status,
     recentServices,
+    promidiaPlaylistNames: [...new Set((promidiaPlaylists || []).map(row => String(row?.name || '').trim()).filter(Boolean))],
     error: null,
     result: null,
   });
@@ -106,12 +114,12 @@ router.post('/api/planning-center/import', requireLogin, asyncHandler(async (req
   const serviceTypeId = normalizeShortText(req.body.serviceTypeId || '', 40);
   const planId = normalizeShortText(req.body.planId || '', 40);
   const tolerance = normalizeShortText(req.body.tolerance || 'balanced', 20).toLowerCase();
-  const localServiceType = normalizeServiceType(req.body.localServiceType || '');
+  const localPlaylistName = normalizeNullableText(req.body.localPlaylistName || '', 255);
   const localDate = normalizeDateOnly(req.body.localDate || '');
   const importMode = normalizeShortText(req.body.importMode || 'append', 20).toLowerCase();
   const maxSlots = Number(req.body.maxSlots || 5);
 
-  if (!serviceTypeId || !planId || !localServiceType || !localDate) {
+  if (!serviceTypeId || !planId || !localPlaylistName || !localDate) {
     return res.status(400).json({ ok: false, error: 'MISSING_REQUIRED_FIELDS' });
   }
 
@@ -123,7 +131,7 @@ router.post('/api/planning-center/import', requireLogin, asyncHandler(async (req
 
   const result = await importPreviewToService({
     preview,
-    localServiceType,
+    localPlaylistName,
     localDate,
     importMode,
     maxSlots,

@@ -7,8 +7,8 @@ const { config } = require('../config');
 const { encryptJson, decryptJson } = require('../utils/crypto-json');
 const {
   normalizeShortText,
-  normalizeServiceType,
   normalizeDateOnly,
+  normalizeNullableText,
   toPositiveInt,
 } = require('../utils/validation');
 
@@ -477,13 +477,13 @@ async function previewPlanImport({ serviceTypeId, planId, tolerance }) {
 async function importPreviewToService(payload = {}) {
   const preview = payload.preview && typeof payload.preview === 'object' ? payload.preview : null;
   if (!preview || !Array.isArray(preview.items)) throw new Error('MISSING_PREVIEW');
-  const localServiceType = normalizeServiceType(payload.localServiceType || '');
+  const localPlaylistName = normalizeNullableText(payload.localPlaylistName || '', 255);
   const localDate = normalizeDateOnly(payload.localDate || '');
   const importMode = String(payload.importMode || '').trim().toLowerCase() === 'replace'
     ? 'replace'
     : 'append';
   const maxSlots = Math.max(1, Math.min(5, toPositiveInt(payload.maxSlots, 5)));
-  if (!localServiceType || !localDate) throw new Error('INVALID_LOCAL_SERVICE_INFO');
+  if (!localPlaylistName || !localDate) throw new Error('INVALID_LOCAL_SERVICE_INFO');
 
   const matchedIds = preview.items
     .filter(item => item?.match?.status === 'matched' && item?.match?.hymnId)
@@ -497,19 +497,19 @@ async function importPreviewToService(payload = {}) {
     await conn.beginTransaction();
     let serviceId = null;
     if (importMode === 'replace') {
-      await conn.query('DELETE FROM services WHERE service_date = ? AND service_type = ?', [localDate, localServiceType]);
+      await conn.query('DELETE FROM services WHERE service_date = ? AND playlist_name = ?', [localDate, localPlaylistName]);
     } else {
       const [[existing]] = await conn.query(
-        'SELECT id FROM services WHERE service_date = ? AND service_type = ? LIMIT 1',
-        [localDate, localServiceType]
+        'SELECT id FROM services WHERE service_date = ? AND playlist_name = ? LIMIT 1',
+        [localDate, localPlaylistName]
       );
       if (existing) serviceId = existing.id;
     }
 
     if (!serviceId) {
       const [insertService] = await conn.query(
-        'INSERT INTO services (service_date, service_type, notes) VALUES (?, ?, ?)',
-        [localDate, localServiceType, normalizeShortText(`Importado de Planning Center: ${preview.planTitle || preview.planId}`, 500)]
+        'INSERT INTO services (service_date, service_type, playlist_name, notes) VALUES (?, ?, ?, ?)',
+        [localDate, 'especial', localPlaylistName, normalizeShortText(`Importado de Planning Center: ${preview.planTitle || preview.planId}`, 500)]
       );
       serviceId = insertService.insertId;
     } else {

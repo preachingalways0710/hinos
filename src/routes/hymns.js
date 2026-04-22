@@ -8,7 +8,6 @@ const {
   normalizeDateOnly,
   normalizeNullableText,
   normalizeShortText,
-  normalizeServiceType,
   toInt,
   toPositiveInt,
 } = require('../utils/validation');
@@ -34,11 +33,11 @@ function nextSundayIso(today = new Date()) {
 async function listCultoOptions(limit = 120) {
   const safeLimit = Math.max(1, Math.min(300, Number(limit) || 120));
   const [rows] = await db.query(`
-    SELECT s.id, s.service_date, s.service_type, s.playlist_name, s.notes,
+    SELECT s.id, s.service_date, s.playlist_name, s.notes,
            COUNT(sh.id) AS hymn_count
     FROM services s
     LEFT JOIN service_hymns sh ON sh.service_id = s.id
-    GROUP BY s.id, s.service_date, s.service_type, s.playlist_name, s.notes
+    GROUP BY s.id, s.service_date, s.playlist_name, s.notes
     ORDER BY
       CASE WHEN s.service_date >= CURDATE() THEN 0 ELSE 1 END ASC,
       CASE WHEN s.service_date >= CURDATE() THEN s.service_date END ASC,
@@ -384,7 +383,6 @@ router.post('/api/hinos/:id/add-to-culto', requireLogin, asyncHandler(async (req
   const hymnId = toPositiveInt(req.params.id, 0);
   const existingServiceId = toPositiveInt(req.body.serviceId, 0);
   const serviceDate = normalizeDateOnly(req.body.serviceDate || '');
-  const serviceType = normalizeServiceType(req.body.serviceType || '');
   const playlistName = normalizeNullableText(req.body.playlistName || '', 255);
   if (!hymnId) return res.status(400).json({ success: false, error: 'INVALID_HYMN_ID' });
 
@@ -396,30 +394,27 @@ router.post('/api/hinos/:id/add-to-culto', requireLogin, asyncHandler(async (req
 
   if (!serviceId) {
     const normalizedDate = serviceDate;
-    const normalizedType = serviceType;
+    const normalizedPlaylist = normalizeNullableText(playlistName || '', 255);
     if (!normalizedDate) {
       return res.status(400).json({ success: false, error: 'INVALID_SERVICE_DATE' });
     }
-    if (!normalizedType) {
-      return res.status(400).json({ success: false, error: 'INVALID_SERVICE_TYPE' });
+    if (!normalizedPlaylist) {
+      return res.status(400).json({ success: false, error: 'INVALID_PLAYLIST_NAME' });
     }
     try {
       const [insert] = await db.query(
         'INSERT INTO services (service_date, service_type, playlist_name, notes) VALUES (?, ?, ?, ?)',
-        [normalizedDate, normalizedType, playlistName, null]
+        [normalizedDate, 'especial', normalizedPlaylist, null]
       );
       serviceId = insert.insertId;
       createdService = true;
     } catch (err) {
       if (err.code !== 'ER_DUP_ENTRY') throw err;
       const [[existing]] = await db.query(
-        'SELECT id, playlist_name FROM services WHERE service_date = ? AND service_type = ? LIMIT 1',
-        [normalizedDate, normalizedType]
+        'SELECT id FROM services WHERE service_date = ? AND playlist_name = ? LIMIT 1',
+        [normalizedDate, normalizedPlaylist]
       );
       serviceId = toPositiveInt(existing?.id, 0);
-      if (serviceId && playlistName && !normalizeShortText(existing?.playlist_name || '', 255)) {
-        await db.query('UPDATE services SET playlist_name = ? WHERE id = ?', [playlistName, serviceId]);
-      }
     }
   }
 
