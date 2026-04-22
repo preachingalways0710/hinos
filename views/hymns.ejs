@@ -274,25 +274,40 @@
       closeAddToCultoModal();
     }
 
-    document.querySelectorAll('.js-add-to-culto').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        openAddToCultoModal(btn.dataset.hymnId, btn.dataset.hymnTitle);
-      });
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.js-add-to-culto');
+      if (!btn) return;
+      e.preventDefault();
+      openAddToCultoModal(btn.dataset.hymnId, btn.dataset.hymnTitle);
     });
 
-    document.getElementById('add-to-culto-target').addEventListener('change', function() {
-      const show = this.value === '__new__';
-      document.getElementById('add-to-culto-new-fields').style.display = show ? '' : 'none';
-    });
-    document.getElementById('add-to-culto-submit').addEventListener('click', function() {
-      submitAddToCulto().catch(function() {
-        alert('Erro inesperado ao adicionar hino ao culto.');
+    const addToCultoTargetEl = document.getElementById('add-to-culto-target');
+    const addToCultoSubmitEl = document.getElementById('add-to-culto-submit');
+    const addToCultoCancelEl = document.getElementById('add-to-culto-cancel');
+    const addToCultoModalEl = document.getElementById('add-to-culto-modal');
+
+    if (addToCultoTargetEl) {
+      addToCultoTargetEl.addEventListener('change', function() {
+        const show = this.value === '__new__';
+        const newFieldsEl = document.getElementById('add-to-culto-new-fields');
+        if (newFieldsEl) newFieldsEl.style.display = show ? '' : 'none';
       });
-    });
-    document.getElementById('add-to-culto-cancel').addEventListener('click', closeAddToCultoModal);
-    document.getElementById('add-to-culto-modal').addEventListener('click', function(e) {
-      if (e.target === this) closeAddToCultoModal();
-    });
+    }
+    if (addToCultoSubmitEl) {
+      addToCultoSubmitEl.addEventListener('click', function() {
+        submitAddToCulto().catch(function() {
+          alert('Erro inesperado ao adicionar hino ao culto.');
+        });
+      });
+    }
+    if (addToCultoCancelEl) {
+      addToCultoCancelEl.addEventListener('click', closeAddToCultoModal);
+    }
+    if (addToCultoModalEl) {
+      addToCultoModalEl.addEventListener('click', function(e) {
+        if (e.target === this) closeAddToCultoModal();
+      });
+    }
   </script>
 </body>
 </html>

@@ -328,9 +328,11 @@ textarea { resize: vertical; min-height: 80px; }
 .slots { display: flex; flex-direction: column; gap: .65rem; }
 .planner-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(420px, 2fr);
+  grid-template-columns: minmax(320px, 34%) minmax(0, 1fr);
   gap: 1rem;
+  align-items: start;
 }
+.planner-main .form-row { grid-template-columns: 1fr; }
 .slot {
   display: flex;
   align-items: center;
@@ -408,6 +410,7 @@ textarea { resize: vertical; min-height: 80px; }
   border-radius: 8px;
   padding: .85rem;
   background: #fbfbfd;
+  min-height: 560px;
 }
 .planner-browser-header {
   display: flex;
