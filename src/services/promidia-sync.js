@@ -132,6 +132,12 @@ function hashSyncToken(value = '') {
   return crypto.createHash('sha256').update(String(value || '')).digest('hex');
 }
 
+function normalizeDateOnly(value = '') {
+  const raw = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '';
+  return raw;
+}
+
 function sanitizeIncomingPayload(payload = {}) {
   return {
     source: normalizeShortText(payload?.source || '', 40) || 'promidia',
@@ -559,6 +565,60 @@ async function replayLastPromidiaSync() {
   };
 }
 
+async function getNextServiceForPromidia(options = {}) {
+  const fromDate = normalizeDateOnly(options?.fromDate || '') || new Date().toISOString().slice(0, 10);
+  const [serviceRows] = await db.query(
+    `SELECT s.id, s.service_date, s.playlist_name, s.notes
+     FROM services s
+     ORDER BY
+       CASE WHEN s.service_date >= ? THEN 0 ELSE 1 END ASC,
+       CASE WHEN s.service_date >= ? THEN s.service_date END ASC,
+       CASE WHEN s.service_date < ? THEN s.service_date END DESC,
+       s.id DESC
+     LIMIT 1`,
+    [fromDate, fromDate, fromDate]
+  );
+  const service = serviceRows[0];
+  if (!service || !service.id) return null;
+
+  const [itemRows] = await db.query(
+    `SELECT sh.position,
+            h.id AS site_hymn_id,
+            h.number,
+            h.title,
+            h.english_title,
+            hy.code AS hymnal,
+            COALESCE(el.external_id, '') AS promidia_hymn_id
+     FROM service_hymns sh
+     JOIN hymns h ON h.id = sh.hymn_id
+     JOIN hymnals hy ON hy.id = h.hymnal_id
+     LEFT JOIN external_hymn_links el
+       ON el.provider = ? AND el.hymn_id = h.id
+     WHERE sh.service_id = ?
+     ORDER BY sh.position ASC`,
+    [PROVIDER, service.id]
+  );
+
+  const items = itemRows.map((row, idx) => ({
+    sequence: Number.isFinite(Number(row.position)) ? Number(row.position) - 1 : idx,
+    kind: 'hymn',
+    promidiaHymnId: normalizeShortText(row.promidia_hymn_id || '', 80),
+    siteHymnId: Number(row.site_hymn_id || 0) || 0,
+    code: normalizeShortText(row.hymnal || '', 20).toUpperCase(),
+    number: Number.isFinite(Number(row.number)) ? Number(row.number) : 0,
+    title: normalizeShortText(row.title || '', 255),
+    englishTitle: normalizeShortText(row.english_title || '', 255),
+  }));
+
+  return {
+    serviceId: Number(service.id),
+    serviceDate: normalizeDateOnly(service.service_date || ''),
+    playlistName: normalizeShortText(service.playlist_name || '', 255),
+    notes: normalizeShortText(service.notes || '', 500),
+    items,
+  };
+}
+
 async function listRecentSyncLogs(limit = 40) {
   const safeLimit = Math.max(1, Math.min(200, toInt(limit, 40)));
   const [rows] = await db.query(
@@ -603,4 +663,5 @@ module.exports = {
   clearManagedSyncToken,
   replayLastPromidiaSync,
   getLatestSyncPayloadInfo,
+  getNextServiceForPromidia,
 };

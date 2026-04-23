@@ -3,6 +3,7 @@
 const express = require('express');
 const { asyncHandler } = require('../utils/async');
 const { requireLogin } = require('../middleware/auth');
+const { normalizeShortText } = require('../utils/validation');
 const {
   assertSyncToken,
   syncFromPromidia,
@@ -12,6 +13,7 @@ const {
   clearManagedSyncToken,
   replayLastPromidiaSync,
   getLatestSyncPayloadInfo,
+  getNextServiceForPromidia,
 } = require('../services/promidia-sync');
 
 const router = express.Router();
@@ -77,6 +79,25 @@ router.post('/api/integrations/promidia/replay-last', requireLogin, asyncHandler
     const code = String(err?.message || 'PROMIDIA_SYNC_MANUAL_FAILED');
     return res.status(400).json({ ok: false, error: code });
   }
+}));
+
+router.get('/api/integrations/promidia/next-service', asyncHandler(async (req, res) => {
+  const token = req.headers['x-sync-token'] || req.headers.authorization || req.query.token || '';
+  try {
+    await assertSyncToken(token);
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: String(err.message || 'UNAUTHORIZED') });
+  }
+  const fromDate = normalizeShortText(req.query.fromDate || '', 12);
+  const plan = await getNextServiceForPromidia({ fromDate });
+  if (!plan) {
+    return res.status(404).json({ ok: false, error: 'NO_SERVICE_AVAILABLE' });
+  }
+  return res.json({
+    ok: true,
+    plan,
+    fetchedAt: new Date().toISOString(),
+  });
 }));
 
 router.post('/api/integrations/promidia/sync-hymns', asyncHandler(async (req, res) => {
