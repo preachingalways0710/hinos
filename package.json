@@ -1,6 +1,6 @@
 {
   "name": "hinos",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Hymn database and service planner",
   "main": "app.js",
   "scripts": {
