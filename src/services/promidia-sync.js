@@ -619,16 +619,24 @@ async function getNextServiceForPromidia(options = {}) {
     [PROVIDER, PROVIDER, service.id]
   );
 
-  const items = itemRows.map((row, idx) => ({
-    sequence: Number.isFinite(Number(row.position)) ? Number(row.position) - 1 : idx,
-    kind: 'hymn',
-    promidiaHymnId: normalizeShortText(row.promidia_hymn_id || '', 80),
-    siteHymnId: Number(row.site_hymn_id || 0) || 0,
-    code: normalizeShortText(row.hymnal || '', 20).toUpperCase(),
-    number: Number.isFinite(Number(row.number)) ? Number(row.number) : 0,
-    title: normalizeShortText(row.title || '', 255),
-    englishTitle: normalizeShortText(row.english_title || '', 255),
-  }));
+  const dedupe = new Set();
+  const items = [];
+  itemRows.forEach((row, idx) => {
+    const item = {
+      sequence: Number.isFinite(Number(row.position)) ? Number(row.position) - 1 : idx,
+      kind: 'hymn',
+      promidiaHymnId: normalizeShortText(row.promidia_hymn_id || '', 80),
+      siteHymnId: Number(row.site_hymn_id || 0) || 0,
+      code: normalizeShortText(row.hymnal || '', 20).toUpperCase(),
+      number: Number.isFinite(Number(row.number)) ? Number(row.number) : 0,
+      title: normalizeShortText(row.title || '', 255),
+      englishTitle: normalizeShortText(row.english_title || '', 255),
+    };
+    const key = `${item.sequence}::${item.code}::${item.number}::${normalizeForMatch(item.title)}`;
+    if (dedupe.has(key)) return;
+    dedupe.add(key);
+    items.push(item);
+  });
 
   return {
     serviceId: Number(service.id),
