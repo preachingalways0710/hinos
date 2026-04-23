@@ -573,10 +573,25 @@ async function getNextServiceForPromidia(options = {}) {
      ORDER BY
        CASE WHEN s.service_date >= ? THEN 0 ELSE 1 END ASC,
        CASE WHEN s.service_date >= ? THEN s.service_date END ASC,
+       CASE
+         WHEN s.service_date >= ? AND (
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%manh%' OR
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%morning%'
+         ) THEN 0
+         WHEN s.service_date >= ? AND (
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%tard%' OR
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%afternoon%'
+         ) THEN 1
+         WHEN s.service_date >= ? AND (
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%noit%' OR
+           LOWER(COALESCE(s.playlist_name, '')) LIKE '%night%'
+         ) THEN 2
+         ELSE 3
+       END ASC,
        CASE WHEN s.service_date < ? THEN s.service_date END DESC,
-       s.id DESC
+       s.id ASC
      LIMIT 1`,
-    [fromDate, fromDate, fromDate]
+    [fromDate, fromDate, fromDate, fromDate, fromDate, fromDate]
   );
   const service = serviceRows[0];
   if (!service || !service.id) return null;
