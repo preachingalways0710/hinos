@@ -607,11 +607,16 @@ async function getNextServiceForPromidia(options = {}) {
      FROM service_hymns sh
      JOIN hymns h ON h.id = sh.hymn_id
      JOIN hymnals hy ON hy.id = h.hymnal_id
-     LEFT JOIN external_hymn_links el
+     LEFT JOIN (
+       SELECT provider, hymn_id, MIN(external_id) AS external_id
+       FROM external_hymn_links
+       WHERE provider = ?
+       GROUP BY provider, hymn_id
+     ) el
        ON el.provider = ? AND el.hymn_id = h.id
      WHERE sh.service_id = ?
      ORDER BY sh.position ASC`,
-    [PROVIDER, service.id]
+    [PROVIDER, PROVIDER, service.id]
   );
 
   const items = itemRows.map((row, idx) => ({
