@@ -64,22 +64,15 @@ app.use(themeRoutes);
 app.use(planningCenterRoutes);
 app.use(promidiaSyncRoutes);
 
-app.use((req, res) => {
-  res.status(404).render('error', {
-    title: 'Página não encontrada',
-    message: 'A página solicitada não existe.',
-  });
-});
-
 app.use((err, req, res, next) => {
   console.error('APP ERROR:', err.stack || err.message);
   const message = config.isProd
     ? 'Algo deu errado no servidor. Tente novamente.'
     : `${err.message || err}`;
-  res.status(500).render('error', {
-    title: 'Erro interno',
-    message,
-  });
+  if (req.accepts('json')) {
+    return res.status(500).json({ ok: false, error: message });
+  }
+  return res.status(500).type('text/plain; charset=utf-8').send(message);
 });
 
 async function bootstrap() {

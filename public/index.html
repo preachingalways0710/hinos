@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promidia Web</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Loading spinner -->
+  <div id="loading" style="display:none">
+    <div class="spinner"></div>
+    <span>Carregando...</span>
+  </div>
+
+  <!-- Setup overlay -->
+  <div id="setup-overlay">
+      <div class="setup-card">
+      <div class="setup-logo">🎵 Promidia Web <span class="app-version">v1.1.0</span></div>
+      <p class="setup-subtitle">Configure a conexão com o repositório</p>
+      <div id="setup-error" class="setup-error"></div>
+      <label>URL do Repositório</label>
+      <input type="url" id="setup-url" placeholder="https://datashow.meuibbv.com">
+      <label>Token de Acesso (opcional)</label>
+      <input type="password" id="setup-token" placeholder="Cole o token (sem Bearer)">
+      <button id="setup-save">Conectar</button>
+      <a class="setup-help-link" href="downloads.html#primeira-conexao" target="_blank" rel="noopener">Guia de primeira conexão</a>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="topbar-logo">🎵 Promidia <span class="topbar-version">v1.1.0</span></div>
+      <div class="search-wrap">
+        <input type="text" id="search" placeholder="Buscar hinos por título ou número..." autocomplete="off" spellcheck="false">
+        <span class="search-count" id="search-count"></span>
+      </div>
+      <div class="topbar-actions">
+        <select id="playlist-select" title="Carregar serviço salvo">
+          <option value="">Carregar serviço...</option>
+        </select>
+        <button id="load-next-service" class="btn-link" type="button">Carregar Próximo</button>
+        <a class="btn-link" href="help.html" target="_blank" rel="noopener">Ajuda</a>
+        <button id="save-service" class="btn-primary">Planejar Serviço</button>
+        <button id="btn-settings" class="btn-icon" title="Configurações">⚙</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <!-- Libraries -->
+      <aside class="panel panel-libs">
+        <div class="panel-hd">Biblioteca</div>
+        <ul id="library-list" class="lib-list"></ul>
+      </aside>
+
+      <!-- Hymns -->
+      <section class="panel panel-hymns">
+        <div class="panel-hd" id="hymns-header">Hinos</div>
+        <ul id="hymn-list" class="hymn-list"></ul>
+        <div id="hymns-empty" class="empty-state hidden">Nenhum hino encontrado.</div>
+      </section>
+
+      <!-- Service -->
+      <aside class="panel panel-service">
+        <div class="panel-hd">
+          Serviço
+          <span class="badge" id="service-count">0</span>
+        </div>
+        <div class="panel-subactions">
+          <div class="plan-grid">
+            <label class="plan-label" for="plan-date">Data</label>
+            <input id="plan-date" class="plan-input" type="date">
+            <label class="plan-label" for="plan-slot">Culto</label>
+            <select id="plan-slot" class="plan-input">
+              <option value="dom_manha">Domingo Manhã</option>
+              <option value="dom_noite">Domingo Noite</option>
+              <option value="qua">Quarta-Feira</option>
+              <option value="especial">Especial</option>
+            </select>
+          </div>
+          <button id="plan-save" class="btn-link btn-plan-save" type="button">Salvar Planejamento</button>
+          <button id="open-operator" class="btn-primary btn-open-operator">Abrir Operador</button>
+        </div>
+        <ul id="service-list" class="service-list"></ul>
+        <div id="service-empty" class="empty-state">
+          Clique em <strong>+</strong> nos hinos para adicionar ao serviço
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <audio id="audio-player"></audio>
+  <script src="app.js?v=1.1.2"></script>
+</body>
+</html>

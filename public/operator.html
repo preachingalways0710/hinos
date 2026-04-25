@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promidia Web - Operador</title>
+  <style>
+    :root {
+      --bg: #15181e;
+      --surface: #1e222b;
+      --surface2: #272c38;
+      --border: #33394a;
+      --text: #dde3ed;
+      --text-muted: #7a8296;
+      --accent: #4c8de8;
+      --accent-hover: #6ba0f0;
+      --success: #4aab77;
+      --danger: #d95050;
+      --topbar-h: 58px;
+      --left-w: 280px;
+      --right-w: 320px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: auto; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .topbar {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .topbar-left, .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .brand {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.1px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      border-radius: 7px;
+      font-size: 13px;
+      padding: 8px 11px;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger {
+      background: #3a2525;
+      border-color: #5b3434;
+      color: #f6d8d8;
+    }
+
+    .stage-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .stage-off {
+      color: var(--text-muted);
+      border-color: var(--border);
+      background: #212632;
+    }
+    .stage-on {
+      color: #dff8ea;
+      border-color: #376649;
+      background: #274133;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w);
+      height: calc(100vh - var(--topbar-h));
+      overflow: hidden;
+      min-width: 1120px;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+      overflow: hidden;
+    }
+    .panel:last-child {
+      border-right: none;
+    }
+
+    .panel-hd {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .service-list {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .service-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      padding: 9px 10px;
+    }
+    .service-item:hover { border-color: var(--accent); }
+    .service-item.active {
+      border-color: var(--accent);
+      background: #253149;
+      box-shadow: inset 0 0 0 1px rgba(106, 160, 240, 0.2);
+    }
+    .service-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .service-meta {
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .slides-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .slides-toolbar {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .slides-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 3px;
+    }
+    .slides-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .slides-grid {
+      padding: 12px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+
+    .slide-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      gap: 8px;
+      text-align: left;
+    }
+    .slide-card:hover { border-color: var(--accent); }
+    .slide-card.active {
+      border-color: var(--accent);
+      background: #273754;
+      box-shadow: inset 0 0 0 1px rgba(106, 160, 240, 0.25);
+    }
+    .slide-number {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .slide-preview {
+      font-size: 15px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      color: #f2f5fb;
+    }
+
+    .empty-state {
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 18px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .controls {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface2);
+      padding: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card-title {
+      margin: 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .card-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .card-fill { width: 100%; }
+
+    #audio-player {
+      width: 100%;
+      height: 34px;
+    }
+
+    .projector-state {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .now-line {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="btn" href="index.html">← Voltar</a>
+      <div class="brand">Promidia Web • Operador <span style="font-size:11px;color:var(--text-muted);font-weight:700;margin-left:6px;">v1.0.0</span></div>
+    </div>
+    <div class="topbar-right">
+      <button id="btn-open-projector" class="btn btn-primary">Abrir Projetor</button>
+      <span id="stage-pill" class="stage-pill stage-off">STAGE OFF</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="panel">
+      <div class="panel-hd">Serviço Ativo</div>
+      <ul id="service-list" class="service-list"></ul>
+      <div id="service-empty" class="empty-state" style="display:none;">Nenhum hino no serviço ativo.</div>
+    </aside>
+
+    <section class="panel slides-wrap">
+      <div class="slides-toolbar">
+        <div id="slides-title" class="slides-title">Selecione um hino</div>
+        <div id="slides-sub" class="slides-sub">Clique em um slide para enviar ao projetor.</div>
+      </div>
+      <div id="slides-grid" class="slides-grid"></div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-hd">Controles</div>
+      <div class="controls">
+        <section class="card">
+          <h3 class="card-title">Stage</h3>
+          <div class="card-row">
+            <button id="btn-stage-toggle" class="btn btn-primary card-fill">Ligar Stage</button>
+            <button id="btn-clear" class="btn btn-danger">Limpar Tela</button>
+          </div>
+          <div id="projector-state" class="projector-state">Projetor: não conectado</div>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title">Áudio</h3>
+          <div id="audio-label" class="now-line">Sem áudio para o hino atual.</div>
+          <audio id="audio-player" controls></audio>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title">Navegação</h3>
+          <div class="card-row">
+            <button id="btn-prev" class="btn">← Anterior</button>
+            <button id="btn-next" class="btn">Próximo →</button>
+          </div>
+          <div id="now-line" class="now-line">Nada ao vivo no projetor.</div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    'use strict';
+
+    const ACTIVE_SERVICE_KEY = 'promidia_active_service';
+    const CFG_KEY = 'promidia_web_cfg';
+    const DEFAULT_CFG = {
+      url: 'https://datashow.meuibbv.com',
+      token: '822916792e2c3c0eab64b41323d3a684b0764a57d0d8174ffd46be23dfaee589',
+    };
+
+    const serviceListEl = document.getElementById('service-list');
+    const serviceEmptyEl = document.getElementById('service-empty');
+    const slidesGridEl = document.getElementById('slides-grid');
+    const slidesTitleEl = document.getElementById('slides-title');
+    const slidesSubEl = document.getElementById('slides-sub');
+    const stagePillEl = document.getElementById('stage-pill');
+    const projectorStateEl = document.getElementById('projector-state');
+    const audioEl = document.getElementById('audio-player');
+    const audioLabelEl = document.getElementById('audio-label');
+    const nowLineEl = document.getElementById('now-line');
+
+    const btnOpenProjector = document.getElementById('btn-open-projector');
+    const btnStageToggle = document.getElementById('btn-stage-toggle');
+    const btnClear = document.getElementById('btn-clear');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+
+    let cfg = { url: '', token: '' };
+    let serviceItems = [];
+    let activeHymnIndex = -1;
+    let activeSlideIndex = -1;
+    let stageOn = false;
+    let projectorWin = null;
+    let audioResolveSeq = 0;
+    const mediaUrlCache = new Map();
+
+    function loadJsonStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function stripBearerPrefix(value) {
+      return String(value || '').trim().replace(/^Bearer\s+/i, '').trim();
+    }
+
+    function normalizeBaseUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/+/, '')}`;
+      try {
+        const parsed = new URL(candidate);
+        if (!/^https?:$/i.test(parsed.protocol)) return '';
+        return `${parsed.protocol}//${parsed.host}`;
+      } catch { return ''; }
+    }
+
+    function sanitizeCfg(input) {
+      return {
+        url: normalizeBaseUrl(input?.url || DEFAULT_CFG.url),
+        token: stripBearerPrefix(input?.token || ''),
+      };
+    }
+
+    function parseServiceIdMeta(id = '') {
+      const match = String(id || '').match(/^svc-(\d{4})(\d{2})(\d{2})-([a-z_]+)-\d+$/i);
+      if (!match) return null;
+      return {
+        date: `${match[1]}-${match[2]}-${match[3]}`,
+        slot: String(match[4] || '').toLowerCase(),
+      };
+    }
+
+    function pickPracticePlaylist(playlists = []) {
+      const today = new Date();
+      const dayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const slotOrder = { dom_manha: 0, dom_noite: 1, qua: 2, especial: 3 };
+
+      const scored = (Array.isArray(playlists) ? playlists : []).map(pl => {
+        const meta = parseServiceIdMeta(pl?.id || '');
+        if (!meta) return { pl, score: '9999-12-31|99|' };
+        const slot = Number(slotOrder[meta.slot] ?? 9);
+        return { pl, score: `${meta.date}|${String(slot).padStart(2, '0')}|${pl.id}` };
+      }).sort((a, b) => a.score.localeCompare(b.score));
+
+      const upcoming = scored.find(row => row.score >= `${dayIso}|00|`);
+      return (upcoming || scored[0] || {}).pl || null;
+    }
+
+    function buildServiceItemsFromPlaylist(playlist, hymns = []) {
+      const hymnById = new Map(
+        (Array.isArray(hymns) ? hymns : [])
+          .map(h => [String(h?.id || '').trim(), h])
+          .filter(row => row[0])
+      );
+      const items = Array.isArray(playlist?.items) ? [...playlist.items] : [];
+      items.sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0));
+      return items.map(entry => {
+        const id = String(entry?.hymnId || entry?.id || '').trim();
+        const hymn = hymnById.get(id);
+        if (!hymn) return null;
+        return {
+          id,
+          title: String(hymn?.title || '').trim(),
+          number: Number(hymn?.number || 0) || 0,
+          code: String(hymn?.code || '').trim(),
+          library: String(hymn?.library || '').trim(),
+          audioFile: String(hymn?.audioFile || '').trim(),
+          slides: normalizeSlides(hymn?.slides),
+        };
+      }).filter(Boolean);
+    }
+
+    async function hydratePracticeService() {
+      if (!cfg.url) return false;
+      const endpoint = `${cfg.url}/api/repository/manifest`;
+      const res = await fetch(endpoint, {
+        headers: {
+          'Accept': 'application/json',
+          ...(cfg.token ? { 'Authorization': `Bearer ${cfg.token}` } : {}),
+        },
+      });
+      if (!res.ok) return false;
+      const payload = await res.json().catch(() => ({}));
+      const hymns = Array.isArray(payload?.hymns) ? payload.hymns : [];
+      const playlists = Array.isArray(payload?.playlists) ? payload.playlists : [];
+      const picked = pickPracticePlaylist(playlists);
+
+      let items = [];
+      if (picked) items = buildServiceItemsFromPlaylist(picked, hymns);
+      if (!items.length) {
+        items = hymns.slice(0, 12).map((h, index) => ({
+          id: String(h?.id || `practice-${index}`).trim(),
+          title: String(h?.title || `Hino ${index + 1}`).trim(),
+          number: Number(h?.number || 0) || 0,
+          code: String(h?.code || '').trim(),
+          library: String(h?.library || '').trim(),
+          audioFile: String(h?.audioFile || '').trim(),
+          slides: normalizeSlides(h?.slides),
+        })).filter(item => item.id && item.title);
+      }
+
+      if (!items.length) return false;
+      serviceItems = items;
+      activeHymnIndex = 0;
+      activeSlideIndex = normalizeSlides(serviceItems[0]?.slides).length ? 0 : -1;
+      return true;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function normalizeSlides(slides) {
+      if (!Array.isArray(slides)) return [];
+      return slides
+        .map(line => String(line ?? '').replace(/\r\n?/g, '\n').trim())
+        .filter(Boolean);
+    }
+
+    function getActiveHymn() {
+      if (activeHymnIndex < 0 || activeHymnIndex >= serviceItems.length) return null;
+      return serviceItems[activeHymnIndex] || null;
+    }
+
+    function getActiveSlides() {
+      const hymn = getActiveHymn();
+      return hymn ? normalizeSlides(hymn.slides) : [];
+    }
+
+    function buildMediaUrl(filename = '') {
+      const file = String(filename || '').trim();
+      if (!file || !cfg.url) return '';
+      const tokenPart = cfg.token ? `?token=${encodeURIComponent(cfg.token)}` : '';
+      return `${cfg.url}/media/${encodeURIComponent(file)}${tokenPart}`;
+    }
+
+    async function resolveMediaUrl(filename = '') {
+      const file = String(filename || '').trim();
+      if (!file || !cfg.url) return '';
+      if (mediaUrlCache.has(file)) return mediaUrlCache.get(file) || '';
+
+      const endpoint = `${cfg.url}/api/repository/media/${encodeURIComponent(file)}`;
+      try {
+        const res = await fetch(endpoint, {
+          headers: {
+            'Accept': 'application/json',
+            ...(cfg.token ? { 'Authorization': `Bearer ${cfg.token}` } : {}),
+          },
+        });
+        if (res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          const direct = String(payload?.signedUrl || '').trim()
+            || (payload?.relativeUrl ? `${cfg.url}${String(payload.relativeUrl)}` : '');
+          if (direct) {
+            mediaUrlCache.set(file, direct);
+            return direct;
+          }
+        }
+      } catch {}
+
+      const fallback = buildMediaUrl(file);
+      mediaUrlCache.set(file, fallback);
+      return fallback;
+    }
+
+    function updateStageUI() {
+      stagePillEl.textContent = stageOn ? 'STAGE ON' : 'STAGE OFF';
+      stagePillEl.className = `stage-pill ${stageOn ? 'stage-on' : 'stage-off'}`;
+      btnStageToggle.textContent = stageOn ? 'Desligar Stage' : 'Ligar Stage';
+      btnStageToggle.classList.toggle('btn-primary', !stageOn);
+      btnStageToggle.classList.toggle('btn-danger', stageOn);
+      updateProjectorState();
+    }
+
+    function updateProjectorState() {
+      const projectorReady = projectorWin && !projectorWin.closed;
+      btnOpenProjector.textContent = projectorReady ? 'Projetor Aberto' : 'Abrir Projetor';
+      if (!projectorReady) {
+        projectorStateEl.textContent = 'Projetor: não conectado';
+        return;
+      }
+      projectorStateEl.textContent = stageOn
+        ? 'Projetor conectado • transmissão ativa'
+        : 'Projetor conectado • stage em espera';
+    }
+
+    function sendProjectorMessage(message) {
+      if (!projectorWin || projectorWin.closed) {
+        updateProjectorState();
+        return false;
+      }
+      try {
+        projectorWin.postMessage(message, '*');
+        return true;
+      } catch {
+        updateProjectorState();
+        return false;
+      }
+    }
+
+    function pushCurrentSlideIfLive() {
+      if (!stageOn) return;
+      const hymn = getActiveHymn();
+      const slides = getActiveSlides();
+      const slideText = slides[activeSlideIndex] || '';
+      const lines = slideText
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      if (!hymn || !lines.length) {
+        sendProjectorMessage({ type: 'clear' });
+        nowLineEl.textContent = 'Nada ao vivo no projetor.';
+        return;
+      }
+
+      sendProjectorMessage({
+        type: 'show-slide',
+        title: String(hymn.title || ''),
+        lines,
+      });
+      nowLineEl.textContent = `Ao vivo: ${hymn.title} • Slide ${activeSlideIndex + 1}/${slides.length}`;
+    }
+
+    async function updateAudioForActiveHymn() {
+      const seq = ++audioResolveSeq;
+      const hymn = getActiveHymn();
+      if (!hymn) {
+        audioEl.removeAttribute('src');
+        audioEl.load();
+        audioLabelEl.textContent = 'Sem hino ativo.';
+        return;
+      }
+
+      const audioFile = String(hymn.audioFile || '').trim();
+      if (!audioFile) {
+        audioEl.removeAttribute('src');
+        audioEl.load();
+        audioLabelEl.textContent = 'Este hino não possui áudio vinculado.';
+        return;
+      }
+
+      audioLabelEl.textContent = `Carregando áudio: ${audioFile}`;
+      const mediaUrl = await resolveMediaUrl(audioFile);
+      if (seq !== audioResolveSeq) return;
+      if (!mediaUrl) {
+        audioEl.removeAttribute('src');
+        audioEl.load();
+        audioLabelEl.textContent = 'Não foi possível resolver a URL do áudio.';
+        return;
+      }
+
+      audioLabelEl.textContent = `Arquivo: ${audioFile}`;
+      if (audioEl.src !== mediaUrl) {
+        audioEl.src = mediaUrl;
+        audioEl.load();
+      }
+    }
+
+    function setActiveHymn(index, options = {}) {
+      if (index < 0 || index >= serviceItems.length) return;
+      activeHymnIndex = index;
+      const slides = getActiveSlides();
+      const preferredSlide = Number.isFinite(Number(options.slideIndex)) ? Number(options.slideIndex) : 0;
+      activeSlideIndex = slides.length ? Math.max(0, Math.min(slides.length - 1, preferredSlide)) : -1;
+      renderServiceList();
+      renderSlideGrid();
+      updateAudioForActiveHymn();
+      if (options.sendLive !== false) pushCurrentSlideIfLive();
+    }
+
+    function setActiveSlide(index, options = {}) {
+      const slides = getActiveSlides();
+      if (!slides.length) {
+        activeSlideIndex = -1;
+        renderSlideGrid();
+        return;
+      }
+      activeSlideIndex = Math.max(0, Math.min(slides.length - 1, index));
+      renderSlideGrid();
+      if (options.sendLive !== false) pushCurrentSlideIfLive();
+    }
+
+    function renderServiceList() {
+      if (!serviceItems.length) {
+        serviceListEl.innerHTML = '';
+        serviceEmptyEl.style.display = 'block';
+        return;
+      }
+
+      serviceEmptyEl.style.display = 'none';
+      serviceListEl.innerHTML = serviceItems.map((item, idx) => {
+        const metaParts = [];
+        if (item.number) metaParts.push(`Nº ${item.number}`);
+        metaParts.push(`${normalizeSlides(item.slides).length} slides`);
+        metaParts.push(item.audioFile ? 'com áudio' : 'sem áudio');
+        return `
+          <li>
+            <button class="service-item${idx === activeHymnIndex ? ' active' : ''}" data-idx="${idx}">
+              <div class="service-title">${escapeHtml(item.title || `Hino ${idx + 1}`)}</div>
+              <div class="service-meta">${escapeHtml(metaParts.join(' • '))}</div>
+            </button>
+          </li>
+        `;
+      }).join('');
+
+      serviceListEl.querySelectorAll('.service-item').forEach(node => {
+        node.addEventListener('click', () => {
+          const idx = Number(node.getAttribute('data-idx'));
+          setActiveHymn(idx, { slideIndex: 0, sendLive: true });
+        });
+      });
+    }
+
+    function renderSlideGrid() {
+      const hymn = getActiveHymn();
+      if (!hymn) {
+        slidesTitleEl.textContent = 'Nenhum hino carregado';
+        slidesSubEl.textContent = 'Volte ao índice e abra o operador a partir de um serviço ativo.';
+        slidesGridEl.innerHTML = '<div class="empty-state">Sem slides para exibir.</div>';
+        return;
+      }
+
+      const slides = getActiveSlides();
+      slidesTitleEl.textContent = hymn.title || 'Hino sem título';
+      slidesSubEl.textContent = slides.length
+        ? `Slides: ${slides.length} • Clique para enviar ao projetor.`
+        : 'Este hino não possui slides.';
+
+      if (!slides.length) {
+        slidesGridEl.innerHTML = '<div class="empty-state">Este hino não possui slides disponíveis no repositório.</div>';
+        return;
+      }
+
+      slidesGridEl.innerHTML = slides.map((slide, idx) => {
+        const compact = slide.length > 180 ? `${slide.slice(0, 180)}…` : slide;
+        return `
+          <button class="slide-card${idx === activeSlideIndex ? ' active' : ''}" data-idx="${idx}">
+            <div class="slide-number">Slide ${idx + 1}</div>
+            <pre class="slide-preview">${escapeHtml(compact)}</pre>
+          </button>
+        `;
+      }).join('');
+
+      slidesGridEl.querySelectorAll('.slide-card').forEach(node => {
+        node.addEventListener('click', () => {
+          const idx = Number(node.getAttribute('data-idx'));
+          setActiveSlide(idx, { sendLive: true });
+        });
+      });
+    }
+
+    function stepSlides(direction) {
+      if (!serviceItems.length) return;
+
+      const slides = getActiveSlides();
+      if (!slides.length) {
+        if (direction > 0 && activeHymnIndex < serviceItems.length - 1) {
+          setActiveHymn(activeHymnIndex + 1, { slideIndex: 0, sendLive: true });
+        } else if (direction < 0 && activeHymnIndex > 0) {
+          const prevSlides = normalizeSlides(serviceItems[activeHymnIndex - 1]?.slides);
+          setActiveHymn(activeHymnIndex - 1, { slideIndex: Math.max(0, prevSlides.length - 1), sendLive: true });
+        }
+        return;
+      }
+
+      const nextIdx = activeSlideIndex + direction;
+      if (nextIdx >= 0 && nextIdx < slides.length) {
+        setActiveSlide(nextIdx, { sendLive: true });
+        return;
+      }
+
+      if (direction > 0 && activeHymnIndex < serviceItems.length - 1) {
+        setActiveHymn(activeHymnIndex + 1, { slideIndex: 0, sendLive: true });
+        return;
+      }
+
+      if (direction < 0 && activeHymnIndex > 0) {
+        const prevIdx = activeHymnIndex - 1;
+        const prevSlides = normalizeSlides(serviceItems[prevIdx]?.slides);
+        setActiveHymn(prevIdx, { slideIndex: Math.max(0, prevSlides.length - 1), sendLive: true });
+      }
+    }
+
+    function toggleStage() {
+      stageOn = !stageOn;
+      updateStageUI();
+      if (stageOn) {
+        if (!projectorWin || projectorWin.closed) {
+          openProjector();
+          return;
+        }
+        pushCurrentSlideIfLive();
+      } else {
+        sendProjectorMessage({ type: 'clear' });
+      }
+    }
+
+    function clearProjector() {
+      activeSlideIndex = -1;
+      renderSlideGrid();
+      sendProjectorMessage({ type: 'clear' });
+      nowLineEl.textContent = 'Tela limpa.';
+    }
+
+    function openProjector() {
+      if (projectorWin && !projectorWin.closed) {
+        try { projectorWin.focus(); } catch {}
+        updateProjectorState();
+        return;
+      }
+      projectorWin = window.open('projector.html', 'promidia-web-projector');
+      if (!projectorWin) {
+        projectorStateEl.textContent = 'Não foi possível abrir o projetor (popup bloqueado).';
+        return;
+      }
+      updateProjectorState();
+      setTimeout(() => {
+        if (stageOn) pushCurrentSlideIfLive();
+      }, 280);
+    }
+
+    function handleKeydown(event) {
+      if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        stepSlides(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        stepSlides(-1);
+      }
+    }
+
+    async function boot() {
+      const cfgStorage = loadJsonStorage(CFG_KEY, {});
+      const serviceStorage = loadJsonStorage(ACTIVE_SERVICE_KEY, {});
+      const legacyItems = Array.isArray(serviceStorage) ? serviceStorage : [];
+      const rawItems = Array.isArray(serviceStorage?.items) ? serviceStorage.items : legacyItems;
+      const params = new URLSearchParams(window.location.search || '');
+      const wantsPractice = params.get('practice') === '1'
+        || params.get('mode') === 'practice'
+        || String(window.location.pathname || '').toLowerCase().includes('ensaiar');
+
+      cfg = sanitizeCfg({
+        url: String(cfgStorage?.url || serviceStorage?.cfg?.url || DEFAULT_CFG.url).trim(),
+        token: String(cfgStorage?.token || serviceStorage?.cfg?.token || DEFAULT_CFG.token).trim(),
+      });
+
+      serviceItems = Array.isArray(rawItems)
+        ? rawItems.map((item, index) => ({
+          id: String(item?.id || '').trim(),
+          title: String(item?.title || `Hino ${index + 1}`).trim(),
+          number: Number(item?.number || 0) || 0,
+          code: String(item?.code || '').trim(),
+          library: String(item?.library || '').trim(),
+          audioFile: String(item?.audioFile || '').trim(),
+          slides: normalizeSlides(item?.slides),
+        })).filter(item => item.id && item.title)
+        : [];
+
+      if (serviceItems.length) {
+        const preferred = Number.isFinite(Number(serviceStorage?.activeIndex))
+          ? Number(serviceStorage.activeIndex)
+          : 0;
+        activeHymnIndex = Math.max(0, Math.min(serviceItems.length - 1, preferred));
+      } else if (wantsPractice || !serviceStorage?.items) {
+        const loaded = await hydratePracticeService().catch(() => false);
+        if (loaded) {
+          nowLineEl.textContent = 'Modo ensaio: serviço carregado automaticamente.';
+        }
+      }
+
+      renderServiceList();
+      renderSlideGrid();
+      updateAudioForActiveHymn();
+      updateStageUI();
+
+      audioEl.addEventListener('error', () => {
+        const hymn = getActiveHymn();
+        const file = String(hymn?.audioFile || '').trim();
+        audioLabelEl.textContent = file
+          ? `Falha ao carregar áudio: ${file}`
+          : 'Falha ao carregar áudio.';
+      });
+      audioEl.addEventListener('loadeddata', () => {
+        const hymn = getActiveHymn();
+        const file = String(hymn?.audioFile || '').trim();
+        if (file) audioLabelEl.textContent = `Arquivo: ${file}`;
+      });
+
+      if (!cfg.url) {
+        audioLabelEl.textContent = 'URL do repositório não configurada no web player.';
+      } else if (!cfg.token) {
+        audioLabelEl.textContent = 'Token ausente. Configure no índice para liberar áudio privado.';
+      }
+
+      btnOpenProjector.addEventListener('click', openProjector);
+      btnStageToggle.addEventListener('click', toggleStage);
+      btnClear.addEventListener('click', clearProjector);
+      btnPrev.addEventListener('click', () => stepSlides(-1));
+      btnNext.addEventListener('click', () => stepSlides(1));
+
+      window.addEventListener('message', event => {
+        const data = event?.data || {};
+        if (data.type === 'projector-ready') {
+          updateProjectorState();
+          if (stageOn) pushCurrentSlideIfLive();
+        }
+      });
+
+      window.addEventListener('keydown', handleKeydown);
+      window.addEventListener('beforeunload', () => {
+        if (projectorWin && !projectorWin.closed) {
+          try { projectorWin.postMessage({ type: 'clear' }, '*'); } catch {}
+        }
+      });
+
+      setInterval(updateProjectorState, 1000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      boot().catch(err => {
+        console.error('Operator boot error:', err);
+      });
+    });
+  </script>
+</body>
+</html>

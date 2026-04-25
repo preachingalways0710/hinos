@@ -1,0 +1,11 @@
+{
+  "version": "1.9.6",
+  "publishedAt": "2026-04-24",
+  "notes": "Patch para validação de update flow (desktop) e melhorias de sync/download.",
+  "landingPage": "https://datashow.meuibbv.com/downloads.html",
+  "downloads": {
+    "mac-arm64": "https://datashow.meuibbv.com/downloads/Promidia-1.9.6-arm64.dmg",
+    "mac-x64": "https://datashow.meuibbv.com/downloads/Promidia-1.9.6-intel.dmg",
+    "win-x64": "https://datashow.meuibbv.com/downloads/Promidia-1.9.6-setup.exe"
+  }
+}

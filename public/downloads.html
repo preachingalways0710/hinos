@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promidia — Downloads</title>
+  <link rel="stylesheet" href="downloads.css">
+  <style>
+    .topnav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(15,19,25,.88);
+      backdrop-filter: saturate(180%) blur(24px);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topnav-inner {
+      max-width: 1080px; margin: 0 auto; padding: 0 28px;
+      height: 52px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 17px; font-weight: 700; letter-spacing: -.4px; color: var(--text); text-decoration: none; }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-link { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active { color: var(--text); }
+    .nav-cta { font-size: 13px; background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 980px; font-weight: 500; transition: background .15s; }
+    .nav-cta:hover { background: var(--accent-h); }
+    @media (max-width: 480px) { .nav-cta { display: none; } .nav-links { gap: 18px; } }
+  </style>
+</head>
+<body>
+
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a class="nav-logo" href="/">Promidia</a>
+      <div class="nav-links">
+        <a class="nav-link" href="https://hinos.meuibbv.com">Repertório</a>
+        <a class="nav-link" href="/app">Operador</a>
+        <a class="nav-link active" href="downloads.html">Downloads</a>
+        <a class="nav-link" href="help.html">Ajuda</a>
+      </div>
+      <a class="nav-cta" href="https://hinos.meuibbv.com">Abrir Repertório</a>
+    </div>
+  </nav>
+
+  <main class="wrap">
+    <header class="hero">
+      <div>
+        <h1>Downloads</h1>
+        <p>Instaladores oficiais do Promidia para Mac e Windows.</p>
+      </div>
+      <div class="hero-meta">
+        <span class="pill" id="release-version">v–</span>
+        <a class="pill link" href="/">← Início</a>
+        <a class="pill link" href="help.html">Ajuda</a>
+      </div>
+    </header>
+
+    <section class="card" id="downloads">
+      <h2>Instaladores</h2>
+      <div class="download-grid">
+        <article class="download-item">
+          <h3>macOS Apple Silicon</h3>
+          <p>M1 / M2 / M3 / M4</p>
+          <a id="dl-mac-arm64" class="btn" href="#" target="_blank" rel="noopener">Baixar DMG (Silicon)</a>
+        </article>
+        <article class="download-item">
+          <h3>macOS Intel</h3>
+          <p>Macs Intel (x64)</p>
+          <a id="dl-mac-x64" class="btn" href="#" target="_blank" rel="noopener">Baixar DMG (Intel)</a>
+        </article>
+        <article class="download-item">
+          <h3>Windows</h3>
+          <p>Windows 10/11 x64</p>
+          <a id="dl-win-x64" class="btn" href="#" target="_blank" rel="noopener">Baixar Instalador</a>
+        </article>
+      </div>
+      <p class="muted" id="release-meta">Carregando release…</p>
+    </section>
+
+    <section class="card" id="changelog">
+      <h2>Novidades desta versão</h2>
+      <p class="muted" id="release-changelog-meta">Carregando…</p>
+      <p id="release-notes" style="margin-top: 8px;"></p>
+    </section>
+
+    <section class="card" id="primeira-conexao">
+      <h2>Primeira Conexão</h2>
+      <p style="margin-bottom: 12px; color: var(--muted);">Guia completo disponível em <a href="help.html" style="color: var(--accent-h);">help.html</a>. Resumo abaixo:</p>
+      <div class="steps">
+        <div class="step">
+          <h3>URL do Repositório</h3>
+          <p><strong>URL Base:</strong> <code>https://datashow.meuibbv.com</code></p>
+          <p style="margin-top: 6px;">Clique <strong>Salvar</strong>, depois <strong>Carregar Bibliotecas</strong>.</p>
+        </div>
+        <div class="step">
+          <h3>Token Bearer</h3>
+          <p>Cole o token fornecido pelo administrador no campo Token Bearer. Não inclua a palavra <code>Bearer</code>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="downloads.js"></script>
+</body>
+</html>

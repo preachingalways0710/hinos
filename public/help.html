@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promidia — Ajuda</title>
+  <link rel="stylesheet" href="downloads.css">
+  <style>
+    .topnav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(15,19,25,.88);
+      backdrop-filter: saturate(180%) blur(24px);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topnav-inner {
+      max-width: 1080px; margin: 0 auto; padding: 0 28px;
+      height: 52px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 17px; font-weight: 700; letter-spacing: -.4px; color: var(--text); text-decoration: none; }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-link { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active { color: var(--text); }
+    .nav-cta { font-size: 13px; background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 980px; font-weight: 500; transition: background .15s; }
+    .nav-cta:hover { background: var(--accent-h); }
+    @media (max-width: 480px) { .nav-cta { display: none; } .nav-links { gap: 18px; } }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .step-header h3 { margin: 0; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <nav class="topnav">
+    <div class="topnav-inner">
+      <a class="nav-logo" href="/">Promidia</a>
+      <div class="nav-links">
+        <a class="nav-link" href="https://hinos.meuibbv.com">Repertório</a>
+        <a class="nav-link" href="/app">Operador</a>
+        <a class="nav-link" href="downloads.html">Downloads</a>
+        <a class="nav-link active" href="help.html">Ajuda</a>
+      </div>
+      <a class="nav-cta" href="https://hinos.meuibbv.com">Abrir Repertório</a>
+    </div>
+  </nav>
+
+  <main class="wrap">
+
+    <header class="hero">
+      <div>
+        <h1>Ajuda</h1>
+        <p>Guia de primeira conexão e solução de problemas.</p>
+      </div>
+      <div class="hero-meta">
+        <a class="pill link" href="/">← Início</a>
+        <a class="pill link" href="downloads.html">Downloads</a>
+      </div>
+    </header>
+
+    <!-- First connection -->
+    <section class="card" id="primeira-conexao">
+      <h2>Primeira Conexão — App Desktop</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h3>URL do Repositório</h3>
+          </div>
+          <p>No aplicativo, abra <strong>Configurações → Repositório Online</strong>.</p>
+          <p style="margin-top: 8px;"><strong>URL Base:</strong></p>
+          <pre><code>https://datashow.meuibbv.com</code></pre>
+          <p style="margin-top: 8px;">Clique <strong>Salvar</strong>, depois <strong>Carregar Bibliotecas</strong>.</p>
+        </div>
+        <div class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h3>Token Bearer</h3>
+          </div>
+          <p>Na mesma tela, preencha o campo <strong>Token Bearer</strong> com o token fornecido pelo administrador.</p>
+          <p style="margin-top: 8px; color: var(--muted);">Cole apenas o token — não inclua a palavra <code>Bearer</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Web planner connection -->
+    <section class="card" id="conexao-web">
+      <h2>Primeira Conexão — Planejamento Web</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h3>Acessar o Site</h3>
+          </div>
+          <p>Acesse <a href="https://hinos.meuibbv.com" style="color: var(--accent-h);">hinos.meuibbv.com</a>. A tela de configuração abrirá automaticamente na primeira visita.</p>
+        </div>
+        <div class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h3>Preencher URL e Token</h3>
+          </div>
+          <p>Informe a URL <code>https://datashow.meuibbv.com</code> e cole o token Bearer, depois clique <strong>Conectar</strong>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Errors -->
+    <section class="card" id="erros">
+      <h2>Erros Comuns</h2>
+      <div class="faq-list">
+        <article>
+          <h3>"Sem bibliotecas carregadas"</h3>
+          <p>O catálogo online está desativado ou o token está incorreto. Verifique URL e Token, clique <strong>Salvar</strong> e tente novamente.</p>
+        </article>
+        <article>
+          <h3>"CLOUD_SYNC_DISABLED"</h3>
+          <p>Ative <strong>Habilitar catálogo online</strong> nas configurações, confira URL/Token, clique <strong>Salvar</strong> e tente novamente.</p>
+        </article>
+        <article>
+          <h3>"AUTH_REQUIRED"</h3>
+          <p>O token não confere com o do servidor. Verifique se copiou o token completo sem espaços extras.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Quick test -->
+    <section class="card" id="teste-rapido">
+      <h2>Verificar Conexão no Terminal</h2>
+      <pre><code>curl -H "Authorization: Bearer SEU_TOKEN" \
+  https://datashow.meuibbv.com/api/repository/libraries</code></pre>
+      <p class="muted">Se retornar <code>{"ok":true,...}</code> a conexão e o token estão corretos.</p>
+    </section>
+
+  </main>
+</body>
+</html>
